@@ -299,10 +299,11 @@ export default class implements Command {
           [messages.config.labels.leaveIfNoListeners]: config.leaveIfNoListeners ? messages.common.yes : messages.common.no,
           [messages.config.labels.autoAnnounceNextSong]: config.autoAnnounceNextSong ? messages.common.yes : messages.common.no,
           [messages.config.labels.persistentNowPlayingMessage]: config.persistentNowPlayingMessage ? messages.common.yes : messages.common.no,
-          [messages.config.labels.queueAddResponseEphemeral]: config.autoAnnounceNextSong ? messages.common.yes : messages.common.no,
+          [messages.config.labels.queueAddResponseEphemeral]: config.queueAddResponseEphemeral ? messages.common.yes : messages.common.no,
           [messages.config.labels.defaultVolume]: config.defaultVolume,
           [messages.config.labels.defaultQueuePageSize]: config.defaultQueuePageSize,
           [messages.config.labels.turnDownVolumeWhenPeopleSpeak]: config.turnDownVolumeWhenPeopleSpeak ? messages.common.yes : messages.common.no,
+          [messages.config.labels.turnDownVolumeWhenPeopleSpeakTarget]: config.turnDownVolumeWhenPeopleSpeakTarget,
         };
 
         let description = '';

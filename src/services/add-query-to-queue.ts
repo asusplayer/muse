@@ -14,6 +14,10 @@ import KeyValueCacheProvider from './key-value-cache.js';
 import {ONE_HOUR_IN_SECONDS} from '../utils/constants.js';
 import messages from '../messages.js';
 
+const isSameQueueEntry = (capturedId: number | null, currentId: number | null) => (
+  capturedId !== null && capturedId === currentId
+);
+
 @injectable()
 export default class AddQueryToQueue {
   private readonly sponsorBlock?: SponsorBlock;
@@ -49,7 +53,8 @@ export default class AddQueryToQueue {
   }): Promise<void> {
     const guildId = interaction.guild!.id;
     const player = this.playerManager.get(guildId);
-    const wasPlayingSong = player.getCurrent() !== null;
+    const currentQueueEntryId = player.getCurrentQueueEntryId();
+    const wasPlayingSong = currentQueueEntryId !== null;
 
     const [targetVoiceChannel] = getMemberVoiceChannel(interaction.member as GuildMember) ?? getMostPopularVoiceChannel(interaction.guild!);
 
@@ -73,17 +78,21 @@ export default class AddQueryToQueue {
       newSongs = await Promise.all(newSongs.map(this.skipNonMusicSegments.bind(this)));
     }
 
-    newSongs.forEach(song => {
+    newSongs.forEach((song, index) => {
       player.add({
         ...song,
         addedInChannelId: interaction.channel!.id,
         requestedBy: interaction.member!.user.id,
-      }, {immediate: addToFrontOfQueue ?? false});
+      }, {
+        immediate: addToFrontOfQueue ?? false,
+        immediateOffset: index,
+      });
     });
 
     const firstSong = newSongs[0];
 
     let statusMsg = '';
+    let shouldShowPlayingEmbed = false;
 
     if (player.voiceConnection === null) {
       await player.connect(targetVoiceChannel);
@@ -95,17 +104,27 @@ export default class AddQueryToQueue {
         statusMsg = messages.queueAdd.resumingPlayback;
       }
 
-      await interaction.editReply({
-        embeds: [buildPlayingMessageEmbed(player)],
-      });
+      shouldShowPlayingEmbed = true;
     } else if (player.status === STATUS.IDLE) {
       // Player is idle, start playback instead
       await player.play();
     }
 
-    if (skipCurrentTrack) {
+    if (!player.getCurrent()) {
+      throw new Error('no playable songs found');
+    }
+
+    if (shouldShowPlayingEmbed) {
+      await interaction.editReply({
+        embeds: [buildPlayingMessageEmbed(player)],
+      });
+    }
+
+    let didSkipCurrentTrack = false;
+    if (skipCurrentTrack && isSameQueueEntry(currentQueueEntryId, player.getCurrentQueueEntryId())) {
       try {
         await player.forward(1);
+        didSkipCurrentTrack = true;
       } catch (_: unknown) {
         throw new Error(messages.errors.noSongToSkip);
       }
@@ -126,11 +145,11 @@ export default class AddQueryToQueue {
 
     if (newSongs.length === 1) {
       await interaction.editReply({
-        embeds: [buildMessageEmbed(messages.queueAdd.single(firstSong.title, {front: addToFrontOfQueue, skipped: skipCurrentTrack, extra: extraMsg}))],
+        embeds: [buildMessageEmbed(messages.queueAdd.single(firstSong.title, {front: addToFrontOfQueue, skipped: didSkipCurrentTrack, extra: extraMsg}))],
       });
     } else {
       await interaction.editReply({
-        embeds: [buildMessageEmbed(messages.queueAdd.multiple(firstSong.title, newSongs.length - 1, {skipped: skipCurrentTrack, extra: extraMsg}))],
+        embeds: [buildMessageEmbed(messages.queueAdd.multiple(firstSong.title, newSongs.length - 1, {skipped: didSkipCurrentTrack, extra: extraMsg}))],
       });
     }
   }
@@ -157,7 +176,7 @@ export default class AddQueryToQueue {
           const previousSegment = acc[acc.length - 1];
           // If segments overlap merge
           if (previousSegment && previousSegment.endTime > startTime) {
-            acc[acc.length - 1].endTime = endTime;
+            acc[acc.length - 1].endTime = Math.max(previousSegment.endTime, endTime);
           } else {
             acc.push({startTime, endTime});
           }
@@ -167,14 +186,18 @@ export default class AddQueryToQueue {
 
       const intro = skipSegments[0];
       const outro = skipSegments.at(-1);
-      if (outro && outro?.endTime >= song.length - 2) {
-        song.length -= outro.endTime - outro.startTime;
+      const shouldTrimIntro = intro && intro.startTime <= 2;
+      const shouldTrimOutro = outro && outro.endTime >= song.length - 2;
+      if (shouldTrimOutro && (!shouldTrimIntro || outro !== intro)) {
+        song.length -= Math.max(0, outro.endTime - outro.startTime);
       }
 
-      if (intro?.startTime <= 2) {
-        song.offset = Math.floor(intro.endTime);
+      if (shouldTrimIntro) {
+        song.offset = Math.max(0, Math.floor(intro.endTime));
         song.length -= song.offset;
       }
+
+      song.length = Math.max(0, song.length);
 
       return song;
     } catch (e) {

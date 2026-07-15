@@ -111,6 +111,7 @@ const messages = {
       defaultVolume: 'Default Volume',
       defaultQueuePageSize: 'Default queue page size',
       turnDownVolumeWhenPeopleSpeak: 'Reduce volume when people speak',
+      turnDownVolumeWhenPeopleSpeakTarget: 'Reduce volume when people speak target',
     },
   },
   favorites: {
@@ -125,9 +126,9 @@ const messages = {
     noSongsFound: 'no songs found',
     resumingPlayback: 'resuming playback',
     single: (title: string, opts: {front: boolean; skipped: boolean; extra: string}) =>
-      `u betcha, **${title}** added to the${opts.front ? ' front of the' : ''} queue${opts.skipped ? 'and current track skipped' : ''}${opts.extra}`,
+      `u betcha, **${title}** added to the${opts.front ? ' front of the' : ''} queue${opts.skipped ? ' and current track skipped' : ''}${opts.extra}`,
     multiple: (title: string, count: number, opts: {skipped: boolean; extra: string}) =>
-      `u betcha, **${title}** and ${count} other songs were added to the queue${opts.skipped ? 'and current track skipped' : ''}${opts.extra}`,
+      `u betcha, **${title}** and ${count} other songs were added to the queue${opts.skipped ? ' and current track skipped' : ''}${opts.extra}`,
   },
   guildCreate: {
     welcomeDm: '👋 Hi! Someone (probably you) just invited me to a server you own. By default, I\'m usable by all guild member in all guild channels. To change this, check out the wiki page on permissions: https://github.com/museofficial/muse/wiki/Configuring-Bot-Permissions.',

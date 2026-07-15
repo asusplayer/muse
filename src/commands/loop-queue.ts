@@ -29,7 +29,7 @@ export default class implements Command {
       throw new Error(messages.loopQueue.noSongsToLoop);
     }
 
-    if (player.queueSize() < 2) {
+    if (player.queueSize() < 1) {
       throw new Error(messages.loopQueue.notEnoughSongs);
     }
 

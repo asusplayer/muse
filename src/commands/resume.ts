@@ -37,6 +37,9 @@ export default class implements Command {
 
     await player.connect(targetVoiceChannel);
     await player.play();
+    if (!player.getCurrent()) {
+      throw new Error('no playable songs found');
+    }
 
     await interaction.reply({
       embeds: [buildMessageEmbed(messages.resume.success), buildPlayingMessageEmbed(player)],

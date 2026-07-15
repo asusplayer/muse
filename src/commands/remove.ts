@@ -15,11 +15,13 @@ export default class implements Command {
     .addIntegerOption(option =>
       option.setName('position')
         .setDescription('position of the song to remove [default: 1]')
+        .setMinValue(1)
         .setRequired(false),
     )
     .addIntegerOption(option =>
       option.setName('range')
         .setDescription('number of songs to remove [default: 1]')
+        .setMinValue(1)
         .setRequired(false));
 
   private readonly playerManager: PlayerManager;
@@ -40,6 +42,10 @@ export default class implements Command {
 
     if (range < 1) {
       throw new Error(messages.remove.invalidRange);
+    }
+
+    if (position > player.queueSize()) {
+      throw new Error('position is outside the range of the queue');
     }
 
     player.removeFromQueue(position, range);

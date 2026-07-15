@@ -3,7 +3,6 @@ import {SlashCommandBuilder} from '@discordjs/builders';
 import {TYPES} from '../types.js';
 import {inject, injectable} from 'inversify';
 import PlayerManager from '../managers/player.js';
-import {STATUS} from '../services/player.js';
 import Command from './index.js';
 import {buildMessageEmbed} from '../utils/build-embed.js';
 import messages from '../messages.js';
@@ -27,10 +26,6 @@ export default class implements Command {
 
     if (!player.voiceConnection) {
       throw new Error(messages.errors.notConnected);
-    }
-
-    if (player.status !== STATUS.PLAYING) {
-      throw new Error(messages.errors.notCurrentlyPlaying);
     }
 
     player.stop();
