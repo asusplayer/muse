@@ -70,7 +70,7 @@ vi.mock('../src/utils/channels.js', () => ({
 
 import Play from '../src/commands/play.js';
 import AddQueryToQueue from '../src/services/add-query-to-queue.js';
-import Player, {FfmpegMediaUnavailableError, MediaSource, QueuedSong, SongMetadata, STATUS} from '../src/services/player.js';
+import Player, {FfmpegMediaUnavailableError, FfmpegStartupError, MediaSource, QueuedSong, SongMetadata, STATUS} from '../src/services/player.js';
 import {getYouTubeMediaSource, YtDlpMediaUnavailableError} from '../src/utils/yt-dlp.js';
 import {buildMessageEmbed} from '../src/utils/build-embed.js';
 
@@ -829,5 +829,33 @@ describe('CTRL-20 audio-idle advance preservation', () => {
       idleError,
     ]);
     expect(consoleError).toHaveBeenCalledOnce();
+  });
+});
+
+describe('forbidden media URL retry', () => {
+  const getStreamOf = (player: Player) => (player as unknown as {getStream: (song: QueuedSong) => Promise<Readable>}).getStream.bind(player);
+  const forbidden = () => new FfmpegStartupError(new Error('ffmpeg exited with code 1: Server returned 403 Forbidden (access denied)'));
+
+  const makeUncachedPlayer = () => {
+    const {createReadStream, player} = makeProductionStreamPlayer();
+    Object.assign(player, {fileCache: {getEntryFor: vi.fn().mockResolvedValue(null)}});
+    return {createReadStream, player};
+  };
+
+  it('extracts a fresh media URL once after a 403', async () => {
+    const {createReadStream, player} = makeUncachedPlayer();
+    const stream = Readable.from([]);
+    createReadStream.mockRejectedValueOnce(forbidden()).mockResolvedValueOnce(stream);
+
+    await expect(getStreamOf(player)(makeQueuedSong('Song'))).resolves.toBe(stream);
+    expect(dependencyMocks.execa).toHaveBeenCalledTimes(2);
+  });
+
+  it('gives up after the second 403', async () => {
+    const {createReadStream, player} = makeUncachedPlayer();
+    createReadStream.mockRejectedValue(forbidden());
+
+    await expect(getStreamOf(player)(makeQueuedSong('Song'))).rejects.toBeInstanceOf(FfmpegStartupError);
+    expect(createReadStream).toHaveBeenCalledTimes(2);
   });
 });

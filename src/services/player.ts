@@ -80,6 +80,8 @@ export class FfmpegStartupError extends Error {
   }
 }
 
+const isForbiddenMediaUrlError = (error: unknown) => error instanceof FfmpegStartupError && error.message.includes('403 Forbidden');
+
 const getFfmpegStartupError = (error: unknown) => {
   const detail = error instanceof Error ? error.message : String(error);
   const isInvalidOutput = /Invalid data found when processing input/i.test(detail);
@@ -891,7 +893,7 @@ export default class {
     return hasha(url);
   }
 
-  private async getStream(song: QueuedSong, options: {seek?: number; to?: number} = {}): Promise<Readable> {
+  private async getStream(song: QueuedSong, options: {seek?: number; to?: number; retriedForbidden?: boolean} = {}): Promise<Readable> {
     if (this.status === STATUS.PLAYING) {
       this.stopAudioPlayer();
     } else if (this.status === STATUS.PAUSED) {
@@ -959,6 +961,14 @@ export default class {
         && error.reason === 'invalid-output') {
         await this.fileCache.invalidate(cacheHash, cachedEntry.generation);
         return this.getStream(song, options);
+      }
+
+      // YouTube sometimes rejects a freshly extracted media URL; a new extraction usually works.
+      if (!cachedEntry
+        && !options.retriedForbidden
+        && isForbiddenMediaUrlError(error)) {
+        debug(`Media URL was forbidden for ${song.url}, extracting a fresh one`);
+        return this.getStream(song, {...options, retriedForbidden: true});
       }
 
       throw error;
