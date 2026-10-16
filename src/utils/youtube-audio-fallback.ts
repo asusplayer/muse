@@ -38,7 +38,7 @@ const cleanVideoTitle = (title: string) => title
   .replace(/\s+/g, ' ')
   .trim();
 
-const matchTokens = (value: string) => Array.from(new Set(value
+export const matchTokens = (value: string) => Array.from(new Set(value
   .normalize('NFKD')
   .replace(/[\u0300-\u036f]/g, '')
   .toLowerCase()

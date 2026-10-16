@@ -118,6 +118,7 @@ const messages = {
     voteSkipUpdated: '👍 vote skip setting updated',
     voteSkipPercentUpdated: '👍 vote skip threshold updated',
     nowPlayingLyricsUpdated: '👍 now playing lyrics setting updated',
+    preferAudioUpdated: '👍 prefer audio setting updated',
     title: 'Config',
     labels: {
       playlistLimit: 'Playlist Limit',
@@ -133,6 +134,7 @@ const messages = {
       voteSkip: 'Vote skip',
       voteSkipPercent: 'Vote skip threshold',
       nowPlayingLyrics: 'Show lyrics in now playing message',
+      preferAudio: 'Prefer YouTube Music audio over music videos in searches',
     },
   },
   favorites: {

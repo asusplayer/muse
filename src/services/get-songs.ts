@@ -19,7 +19,7 @@ export default class {
     this.spotifyAPI = spotifyAPI;
   }
 
-  async getSongs(query: string, playlistLimit: number, shouldSplitChapters: boolean): Promise<[SongMetadata[], string]> {
+  async getSongs(query: string, playlistLimit: number, shouldSplitChapters: boolean, preferAudio = false): Promise<[SongMetadata[], string]> {
     const newSongs: SongMetadata[] = [];
     let extraMsg = '';
     let url: URL | undefined;
@@ -35,7 +35,7 @@ export default class {
 
     if (!url || !supportedProtocols.includes(url.protocol)) {
       // Not a supported provider URL, so search YouTube as free text.
-      const songs = await this.youtubeVideoSearch(query, shouldSplitChapters);
+      const songs = await this.youtubeVideoSearch(query, shouldSplitChapters, preferAudio);
 
       if (songs) {
         newSongs.push(...songs);
@@ -76,7 +76,7 @@ export default class {
         throw new Error('Spotify is not enabled!');
       }
 
-      const [convertedSongs, nSongsNotFound, totalSongs] = await this.spotifySource(query, playlistLimit, shouldSplitChapters);
+      const [convertedSongs, nSongsNotFound, totalSongs] = await this.spotifySource(query, playlistLimit, shouldSplitChapters, preferAudio);
 
       if (totalSongs > playlistLimit) {
         extraMsg = `a random sample of ${playlistLimit} songs was taken`;
@@ -108,8 +108,8 @@ export default class {
     return [newSongs, extraMsg];
   }
 
-  private async youtubeVideoSearch(query: string, shouldSplitChapters: boolean): Promise<SongMetadata[]> {
-    return this.youtubeAPI.search(query, shouldSplitChapters);
+  private async youtubeVideoSearch(query: string, shouldSplitChapters: boolean, preferAudio: boolean): Promise<SongMetadata[]> {
+    return this.youtubeAPI.search(query, shouldSplitChapters, preferAudio);
   }
 
   private async youtubeVideo(url: string, shouldSplitChapters: boolean): Promise<SongMetadata[]> {
@@ -120,7 +120,7 @@ export default class {
     return this.youtubeAPI.getPlaylist(listId, shouldSplitChapters);
   }
 
-  private async spotifySource(url: string, playlistLimit: number, shouldSplitChapters: boolean): Promise<[SongMetadata[], number, number]> {
+  private async spotifySource(url: string, playlistLimit: number, shouldSplitChapters: boolean, preferAudio: boolean): Promise<[SongMetadata[], number, number]> {
     if (this.spotifyAPI === undefined) {
       return [[], 0, 0];
     }
@@ -130,22 +130,22 @@ export default class {
     switch (parsed.type) {
       case 'album': {
         const [tracks, playlist] = await this.spotifyAPI.getAlbum(url, playlistLimit);
-        return this.spotifyToYouTube(tracks, shouldSplitChapters, playlist);
+        return this.spotifyToYouTube(tracks, shouldSplitChapters, preferAudio, playlist);
       }
 
       case 'playlist': {
         const [tracks, playlist] = await this.spotifyAPI.getPlaylist(url, playlistLimit);
-        return this.spotifyToYouTube(tracks, shouldSplitChapters, playlist);
+        return this.spotifyToYouTube(tracks, shouldSplitChapters, preferAudio, playlist);
       }
 
       case 'track': {
         const tracks = [await this.spotifyAPI.getTrack(url)];
-        return this.spotifyToYouTube(tracks, shouldSplitChapters);
+        return this.spotifyToYouTube(tracks, shouldSplitChapters, preferAudio);
       }
 
       case 'artist': {
         const tracks = await this.spotifyAPI.getArtist(url, playlistLimit);
-        return this.spotifyToYouTube(tracks, shouldSplitChapters);
+        return this.spotifyToYouTube(tracks, shouldSplitChapters, preferAudio);
       }
 
       default: {
@@ -225,8 +225,8 @@ export default class {
     return songs.flat();
   }
 
-  private async spotifyToYouTube(tracks: SpotifyTrack[], shouldSplitChapters: boolean, playlist?: QueuedPlaylist | undefined): Promise<[SongMetadata[], number, number]> {
-    const promisedResults = tracks.map(async track => this.youtubeAPI.search(`"${track.name}" "${track.artist}"`, shouldSplitChapters));
+  private async spotifyToYouTube(tracks: SpotifyTrack[], shouldSplitChapters: boolean, preferAudio: boolean, playlist?: QueuedPlaylist | undefined): Promise<[SongMetadata[], number, number]> {
+    const promisedResults = tracks.map(async track => this.youtubeAPI.search(`"${track.name}" "${track.artist}"`, shouldSplitChapters, preferAudio));
     const searchResults = await Promise.allSettled(promisedResults);
 
     let nSongsNotFound = 0;

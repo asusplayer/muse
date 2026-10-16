@@ -145,7 +145,7 @@ describe('GetSongs provider routing', () => {
     youtubeAPI.search.mockResolvedValue(result);
 
     await expect(getSongs.getSongs('lofi beats', 20, true)).resolves.toEqual([result, '']);
-    expect(youtubeAPI.search).toHaveBeenCalledWith('lofi beats', true);
+    expect(youtubeAPI.search).toHaveBeenCalledWith('lofi beats', true, false);
     expect(youtubeAPI.getVideo).not.toHaveBeenCalled();
     expect(youtubeAPI.getPlaylist).not.toHaveBeenCalled();
   });
@@ -159,7 +159,7 @@ describe('GetSongs provider routing', () => {
     youtubeAPI.search.mockResolvedValue(result);
 
     await expect(getSongs.getSongs(query, 20, true)).resolves.toEqual([result, '']);
-    expect(youtubeAPI.search).toHaveBeenCalledWith(query, true);
+    expect(youtubeAPI.search).toHaveBeenCalledWith(query, true, false);
     expect(youtubeAPI.getVideo).not.toHaveBeenCalled();
     expect(youtubeAPI.getPlaylist).not.toHaveBeenCalled();
     expect(spotifyAPI.getTrack).not.toHaveBeenCalled();
@@ -186,7 +186,7 @@ describe('GetSongs provider routing', () => {
 
     await expect(getSongs.getSongs(url, 20, false)).resolves.toEqual([result, '']);
     expect(spotifyAPI.getTrack).toHaveBeenCalledWith(url);
-    expect(youtubeAPI.search).toHaveBeenCalledWith('"Spotify song" "Spotify artist"', false);
+    expect(youtubeAPI.search).toHaveBeenCalledWith('"Spotify song" "Spotify artist"', false, false);
     expect(youtubeAPI.search).not.toHaveBeenCalledWith(url, false);
   });
 

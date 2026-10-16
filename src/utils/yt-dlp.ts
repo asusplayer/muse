@@ -23,6 +23,7 @@ interface YtDlpResponse extends YtDlpMediaDownload {
 }
 
 export interface SoundCloudMetadata {
+  readonly id?: string;
   readonly title?: string;
   readonly uploader?: string;
   readonly artist?: string;
@@ -379,6 +380,11 @@ export const getYouTubeMediaSource = async (videoIdOrUrl: string): Promise<YtDlp
 export const getSoundCloudMetadata = async (url: string, playlistLimit: number): Promise<SoundCloudMetadata> => (
   extractMedia(url, Math.max(1, Math.floor(playlistLimit)), false)
 );
+
+export const searchYouTubeMusicSongIds = async (query: string, limit: number): Promise<string[]> => {
+  const result = await extractMedia(`https://music.youtube.com/search?q=${encodeURIComponent(query)}#songs`, limit);
+  return (result.entries ?? []).flatMap(entry => entry?.id ? [entry.id] : []);
+};
 
 export const getSoundCloudMediaSource = async (url: string): Promise<YtDlpMediaSource> => (
   toMediaSource(await extractMedia(url, undefined, false))

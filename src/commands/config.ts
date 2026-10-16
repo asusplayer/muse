@@ -116,6 +116,13 @@ export default class implements Command {
         .setDescription('whether the now playing message shows synced lyrics')
         .setRequired(true)))
     .addSubcommand(subcommand => subcommand
+      .setName('set-prefer-audio')
+      .setDescription('set whether searches prefer the YouTube Music audio version over the music video')
+      .addBooleanOption(option => option
+        .setName('value')
+        .setDescription('whether searches prefer the YouTube Music audio version')
+        .setRequired(true)))
+    .addSubcommand(subcommand => subcommand
       .setName('get')
       .setDescription('show all settings'));
 
@@ -360,6 +367,23 @@ export default class implements Command {
         break;
       }
 
+      case 'set-prefer-audio': {
+        const value = interaction.options.getBoolean('value')!;
+
+        await prisma.setting.update({
+          where: {
+            guildId: interaction.guild!.id,
+          },
+          data: {
+            preferAudio: value,
+          },
+        });
+
+        await interaction.reply({embeds: [buildMessageEmbed(messages.config.preferAudioUpdated)]});
+
+        break;
+      }
+
       case 'get': {
         const embed = new EmbedBuilder().setTitle(messages.config.title);
 
@@ -381,6 +405,7 @@ export default class implements Command {
           [messages.config.labels.voteSkip]: config.voteSkip ? messages.common.yes : messages.common.no,
           [messages.config.labels.voteSkipPercent]: `${config.voteSkipPercent}%`,
           [messages.config.labels.nowPlayingLyrics]: config.nowPlayingLyrics ? messages.common.yes : messages.common.no,
+          [messages.config.labels.preferAudio]: config.preferAudio ? messages.common.yes : messages.common.no,
         };
 
         let description = '';

@@ -66,11 +66,11 @@ export default class AddQueryToQueue {
 
     const settings = await getGuildSettings(guildId);
 
-    const {playlistLimit, queueAddResponseEphemeral} = settings;
+    const {playlistLimit, queueAddResponseEphemeral, preferAudio} = settings;
 
     await interaction.deferReply({ephemeral: queueAddResponseEphemeral});
 
-    let [newSongs, extraMsg] = await this.getSongs.getSongs(query, playlistLimit, shouldSplitChapters);
+    let [newSongs, extraMsg] = await this.getSongs.getSongs(query, playlistLimit, shouldSplitChapters, preferAudio);
 
     if (newSongs.length === 0) {
       throw new Error(messages.queueAdd.noSongsFound);

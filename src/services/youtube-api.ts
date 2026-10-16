@@ -8,7 +8,11 @@ import KeyValueCacheProvider from './key-value-cache.js';
 import {ONE_HOUR_IN_SECONDS, ONE_MINUTE_IN_SECONDS} from '../utils/constants.js';
 import {parseTime} from '../utils/time.js';
 import getYouTubeID from 'get-youtube-id';
-import {buildAudioFallbackQuery, rankAudioFallbackCandidates} from '../utils/youtube-audio-fallback.js';
+import {buildAudioFallbackQuery, matchTokens, rankAudioFallbackCandidates} from '../utils/youtube-audio-fallback.js';
+import {searchYouTubeMusicSongIds} from '../utils/yt-dlp.js';
+import debug from '../utils/debug.js';
+
+const YOUTUBE_MUSIC_CANDIDATES = 5;
 
 interface VideoDetailsResponse {
   id: string;
@@ -83,7 +87,12 @@ export default class {
     });
   }
 
-  async search(query: string, shouldSplitChapters: boolean): Promise<SongMetadata[]> {
+  async search(query: string, shouldSplitChapters: boolean, preferAudio = false): Promise<SongMetadata[]> {
+    const song = preferAudio ? await this.searchYouTubeMusicSong(query) : undefined;
+    if (song) {
+      return this.getMetadataFromVideo({video: song, shouldSplitChapters});
+    }
+
     const ids = await this.searchVideoIDs(query);
 
     if (ids.length === 0) {
@@ -233,6 +242,45 @@ export default class {
     }
 
     return songsToReturn;
+  }
+
+  // YouTube Music's song search ranks the studio version first far more reliably than YouTube search does.
+  // Among its top results, take the one covering most of the typed words; ties keep YouTube Music's order.
+  private async searchYouTubeMusicSong(query: string): Promise<VideoDetailsResponse | undefined> {
+    const queryTokens = new Set(matchTokens(query));
+    if (queryTokens.size === 0) {
+      return undefined;
+    }
+
+    try {
+      const ids = await this.cache.wrap(async () => searchYouTubeMusicSongIds(query, YOUTUBE_MUSIC_CANDIDATES), {
+        key: `youtube-music-search:${query}`,
+        expiresIn: ONE_HOUR_IN_SECONDS,
+      });
+      if (ids.length === 0) {
+        return undefined;
+      }
+
+      const videos = await this.getVideosByID(ids);
+      let best: {video: VideoDetailsResponse; coverage: number} | undefined;
+      for (const video of ids.map(id => videos.find(candidate => candidate.id === id))) {
+        if (!video) {
+          continue;
+        }
+
+        const songTokens = new Set(matchTokens(`${video.snippet.title} ${video.snippet.channelTitle}`));
+        const coverage = [...queryTokens].filter(token => songTokens.has(token)).length;
+        if (!best || coverage > best.coverage) {
+          best = {video, coverage};
+        }
+      }
+
+      // Too few typed words in the song means the query was probably not a song name.
+      return best && best.coverage * 2 >= queryTokens.size ? best.video : undefined;
+    } catch (error: unknown) {
+      debug(error);
+      return undefined;
+    }
   }
 
   private getMetadataFromVideo({

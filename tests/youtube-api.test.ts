@@ -1,9 +1,13 @@
 import 'reflect-metadata';
-import {describe, expect, it, vi} from 'vitest';
+import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 vi.mock('../src/services/player.js', () => ({
   MediaSource: {Youtube: 0},
 }));
+
+const ytDlpMocks = vi.hoisted(() => ({searchYouTubeMusicSongIds: vi.fn()}));
+
+vi.mock('../src/utils/yt-dlp.js', () => ytDlpMocks);
 
 import YoutubeAPI from '../src/services/youtube-api.js';
 
@@ -22,11 +26,13 @@ const makeVideo = ({
   description = '',
   duration = 'PT3M',
   title = id,
+  channelTitle = 'Channel',
 }: {
   id: string;
   description?: string;
   duration?: string;
   title?: string;
+  channelTitle?: string;
 }) => ({
   id,
   contentDetails: {
@@ -35,7 +41,7 @@ const makeVideo = ({
   },
   snippet: {
     title,
-    channelTitle: 'Channel',
+    channelTitle,
     liveBroadcastContent: 'none',
     description,
     thumbnails: {
@@ -53,10 +59,12 @@ const makeHarness = ({
   itemCount = 0,
   pages = [],
   videos = [],
+  searchIds = [],
 }: {
   itemCount?: number;
   pages?: PlaylistItemPage[];
   videos?: ReturnType<typeof makeVideo>[];
+  searchIds?: string[];
 } = {}) => {
   const remainingPages = [...pages];
   const videoById = new Map(videos.map(video => [video.id, video]));
@@ -65,8 +73,12 @@ const makeHarness = ({
   const cache = {
     wrap: vi.fn(async (
       _fetchValue: () => Promise<unknown>,
-      {searchParams}: {searchParams: Record<string, string | undefined>},
+      {searchParams}: {searchParams?: Record<string, string | undefined>},
     ) => {
+      if (!searchParams) {
+        return _fetchValue();
+      }
+
       if (searchParams.playlistId === PLAYLIST_ID) {
         playlistItemsCallCount++;
         const page = remainingPages.shift();
@@ -85,6 +97,10 @@ const makeHarness = ({
             snippet: {title: 'Playlist'},
           }],
         };
+      }
+
+      if (searchParams.q) {
+        return {items: searchIds.map(videoId => ({id: {videoId}}))};
       }
 
       const requestedVideoIds = searchParams.id?.split(',').filter(Boolean) ?? [];
@@ -329,5 +345,53 @@ describe('YoutubeAPI chapter parsing', () => {
       {title: 'Part (Chaptered video)', offset: 30, length: 30},
       {title: 'Finale (Chaptered video)', offset: 60, length: 60},
     ]);
+  });
+});
+
+describe('YoutubeAPI search audio preference', () => {
+  // Real results for "Perfect Strangers - Jonas Blue".
+  const musicVideo = makeVideo({id: 'musicvideo1', title: 'Jonas Blue - Perfect Strangers ft. JP Cooper', channelTitle: 'JonasBlueVEVO', duration: 'PT3M28S'});
+  const song = makeVideo({id: 'topicaudio1', title: 'Perfect Strangers', channelTitle: 'Jonas Blue - Topic', duration: 'PT3M17S'});
+  const karaoke = makeVideo({id: 'karaokever1', title: 'Perfect Strangers (Originally Performed by Jonas Blue Feat. Jp Cooper)', channelTitle: 'Release - Topic', duration: 'PT3M18S'});
+  const videos = [musicVideo, song, karaoke];
+
+  beforeEach(() => {
+    ytDlpMocks.searchYouTubeMusicSongIds.mockReset();
+  });
+
+  const searchUrls = async (query: string, preferAudio: boolean, musicIds: string[] | Error) => {
+    if (musicIds instanceof Error) {
+      ytDlpMocks.searchYouTubeMusicSongIds.mockRejectedValueOnce(musicIds);
+    } else {
+      ytDlpMocks.searchYouTubeMusicSongIds.mockResolvedValueOnce(musicIds);
+    }
+
+    const {api} = makeHarness({videos, searchIds: [musicVideo.id]});
+    return (await api.search(query, false, preferAudio)).map(result => result.url);
+  };
+
+  it('takes the top YouTube Music song, keeping its order over equally matching covers', async () => {
+    expect(await searchUrls('Perfect Strangers - Jonas Blue', true, [song.id, karaoke.id])).toEqual([song.id]);
+  });
+
+  it('prefers a lower song that covers more of the typed words', async () => {
+    // Real results for "One More - Mark Knight Remix -Edit".
+    const remix = makeVideo({id: 'onemoremix1', title: 'One More (Mark Knight Remix)', channelTitle: 'SG Lewis - Topic', duration: 'PT5M49S'});
+    const edit = makeVideo({id: 'onemoreedit', title: 'One More (Mark Knight Remix Edit)', channelTitle: 'SG Lewis - Topic', duration: 'PT3M34S'});
+    ytDlpMocks.searchYouTubeMusicSongIds.mockResolvedValueOnce([remix.id, edit.id]);
+    const {api} = makeHarness({videos: [remix, edit]});
+
+    expect((await api.search('One More - Mark Knight Remix -Edit', false, true)).map(result => result.url)).toEqual([edit.id]);
+  });
+
+  it.each([
+    ['audio is not preferred', false, [song.id]],
+    ['YouTube Music finds nothing', true, []],
+    ['the song shares too few typed words', true, [karaoke.id]],
+    ['YouTube Music search fails', true, new Error('yt-dlp failed')],
+  ])('uses the regular YouTube search when %s', async (_label, preferAudio, musicIds) => {
+    const query = preferAudio && Array.isArray(musicIds) && musicIds.length > 0 ? 'strangers in the night sinatra' : 'Perfect Strangers - Jonas Blue';
+
+    expect(await searchUrls(query, preferAudio as boolean, musicIds as string[] | Error)).toEqual([musicVideo.id]);
   });
 });
