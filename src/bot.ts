@@ -8,6 +8,7 @@ import debug from './utils/debug.js';
 import handleGuildCreate from './events/guild-create.js';
 import handleVoiceStateUpdate from './events/voice-state-update.js';
 import {buildErrorEmbed} from './utils/build-embed.js';
+import {errorText, sanitizeErrorForLog} from './utils/error-text.js';
 import messages from './messages.js';
 import {isUserInVoice} from './utils/channels.js';
 import Config from './services/config.js';
@@ -15,32 +16,6 @@ import {generateDependencyReport} from '@discordjs/voice';
 import {REST} from '@discordjs/rest';
 import {Routes} from 'discord-api-types/v10';
 import registerCommandsOnGuild from './utils/register-commands-on-guild.js';
-
-const sanitizeErrorDetail = (error: unknown) => {
-  const message = error instanceof Error ? error.message : String(error);
-  return message
-    .replace(/https?:\/\/\S+/gi, '[URL]')
-    .replace(/(["']?\b(?:api[-_]?key|key|token|authorization|cookie)["']?\s*[:=]\s*)(?:["'][^"']*["']|Bearer\s+[^,;\s]+|[^,;\s}\]]+)/gi, '$1[redacted]')
-    .replace(/\b(authorization|cookie)\s*[:=]\s*[^\r\n]*/gi, '$1: [redacted]')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, 500);
-};
-
-const sanitizeErrorForLog = (error: unknown) => {
-  const name = error instanceof Error ? error.name : 'Error';
-  const detail = sanitizeErrorDetail(error);
-
-  return `${name}: ${detail || 'unknown error'}`;
-};
-
-const errorText = (error?: string | Error): string => {
-  if (!error) {
-    return messages.common.unknownError;
-  }
-
-  return `${messages.common.errorPrefix} ${typeof error === 'string' ? error : sanitizeErrorDetail(error)}`;
-};
 
 @injectable()
 export default class {

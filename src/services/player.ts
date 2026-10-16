@@ -33,7 +33,7 @@ import {
 import {destroyVoiceConnection, recoverVoiceConnection} from './voice-connection-recovery.js';
 import debug from '../utils/debug.js';
 import {getGuildSettings} from '../utils/get-guild-settings.js';
-import {buildPlayingMessageEmbed} from '../utils/build-embed.js';
+import {buildPlayerControls, buildPlayingMessageEmbed} from '../utils/build-embed.js';
 import {getSoundCloudMediaSource, getYouTubeMediaSource, YtDlpMediaUnavailableError} from '../utils/yt-dlp.js';
 import {Setting} from '@prisma/client';
 
@@ -118,6 +118,8 @@ export default class {
 
   private nowPlayingMessage: Message | undefined;
   private nowPlayingMessageInterval: NodeJS.Timeout | undefined;
+  private nowPlayingMessageEdit: Promise<void> | undefined;
+  private nowPlayingMessageEditQueued = false;
 
   private positionInSeconds = 0;
   private readonly fileCache: FileCacheProvider;
@@ -512,6 +514,14 @@ export default class {
     }
   }
 
+  getConfiguredVolume(): number {
+    return this.volume ?? this.defaultVolume;
+  }
+
+  getVoiceChannelId(): string | undefined {
+    return this.currentChannel?.id;
+  }
+
   getVolume(): number {
     // Only use default volume if player volume is not already set (in the event of a reconnect we shouldn't reset)
     return this.voiceActivityVolumeTarget ?? this.volume ?? this.defaultVolume;
@@ -532,6 +542,26 @@ export default class {
 
       this.nowPlayingMessage = undefined;
     }
+  }
+
+  async refreshNowPlayingMessage(): Promise<void> {
+    // Coalesce concurrent refreshes so edits never overlap.
+    if (this.nowPlayingMessageEdit) {
+      this.nowPlayingMessageEditQueued = true;
+      return this.nowPlayingMessageEdit;
+    }
+
+    this.nowPlayingMessageEdit = (async () => {
+      do {
+        this.nowPlayingMessageEditQueued = false;
+        // eslint-disable-next-line no-await-in-loop
+        await this.editNowPlayingMessage();
+      } while (this.nowPlayingMessageEditQueued);
+    })().finally(() => {
+      this.nowPlayingMessageEdit = undefined;
+    });
+
+    return this.nowPlayingMessageEdit;
   }
 
   private async connectWithRetries(channel: VoiceChannel, generation: number): Promise<void> {
@@ -1134,33 +1164,38 @@ export default class {
 
       this.nowPlayingMessage = await textChannel.send({
         embeds: [buildPlayingMessageEmbed(this)],
+        components: buildPlayerControls(this),
       });
 
       this.nowPlayingMessageInterval = setInterval(() => {
-        void this.updateNowPlayingMessage();
+        void this.refreshNowPlayingMessage();
       }, 1_000);
     } catch (error: unknown) {
       debug(error);
     }
   }
 
-  private async updateNowPlayingMessage(): Promise<void> {
-    try {
-      if (!this.nowPlayingMessage) {
-        return;
-      }
+  private async editNowPlayingMessage(): Promise<void> {
+    const message = this.nowPlayingMessage;
+    if (!message) {
+      return;
+    }
 
+    try {
       if (!this.getCurrent()) {
         await this.clearNowPlayingMessage();
         return;
       }
 
-      await this.nowPlayingMessage.edit({
+      await message.edit({
         embeds: [buildPlayingMessageEmbed(this)],
+        components: buildPlayerControls(this),
       });
     } catch (error: unknown) {
       debug(error);
-      await this.clearNowPlayingMessage();
+      if (this.nowPlayingMessage === message) {
+        await this.clearNowPlayingMessage();
+      }
     }
   }
 

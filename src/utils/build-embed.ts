@@ -1,5 +1,13 @@
 import getYouTubeID from 'get-youtube-id';
-import {EmbedBuilder} from 'discord.js';
+import {
+  ActionRowBuilder,
+  APIActionRowComponent,
+  APIMessageActionRowComponent,
+  ButtonBuilder,
+  ButtonStyle,
+  EmbedBuilder,
+  MessageActionRowComponentBuilder,
+} from 'discord.js';
 import Player, {MediaSource, QueuedSong, STATUS} from '../services/player.js';
 import getProgressBar from './get-progress-bar.js';
 import {prettyTime} from './time.js';
@@ -87,6 +95,46 @@ const getUpNextPreview = (player: Player): string | null => {
   }
 
   return moreLine === '' ? value : `${value}\n${moreLine}`;
+};
+
+export const PLAYER_BUTTON_IDS = {
+  previous: 'np:previous',
+  playPause: 'np:play-pause',
+  skip: 'np:skip',
+  stop: 'np:stop',
+  loop: 'np:loop',
+  shuffle: 'np:shuffle',
+  volumeDown: 'np:volume-down',
+  volumeUp: 'np:volume-up',
+} as const;
+
+const controlButton = (customId: string, emoji: string, options: {disabled?: boolean; active?: boolean} = {}) =>
+  new ButtonBuilder()
+    .setCustomId(customId)
+    .setEmoji(emoji)
+    .setStyle(options.active ? ButtonStyle.Success : ButtonStyle.Secondary)
+    .setDisabled(options.disabled ?? false);
+
+// Serialized to JSON: the installed discord.js builders and message types disagree on API type versions.
+export const buildPlayerControls = (player: Player): Array<APIActionRowComponent<APIMessageActionRowComponent>> => {
+  const loopEmoji = player.loopCurrentSong ? '🔂' : '🔁';
+
+  const rows = [
+    new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
+      controlButton(PLAYER_BUTTON_IDS.previous, '⏮️', {disabled: !player.canGoBack()}),
+      controlButton(PLAYER_BUTTON_IDS.playPause, player.status === STATUS.PLAYING ? '⏸️' : '▶️'),
+      controlButton(PLAYER_BUTTON_IDS.skip, '⏭️'),
+      controlButton(PLAYER_BUTTON_IDS.stop, '⏹️'),
+    ),
+    new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
+      controlButton(PLAYER_BUTTON_IDS.loop, loopEmoji, {active: player.loopCurrentSong || player.loopCurrentQueue}),
+      controlButton(PLAYER_BUTTON_IDS.shuffle, '🔀', {disabled: player.isQueueEmpty()}),
+      controlButton(PLAYER_BUTTON_IDS.volumeDown, '🔉'),
+      controlButton(PLAYER_BUTTON_IDS.volumeUp, '🔊'),
+    ),
+  ];
+
+  return rows.map(row => row.toJSON() as unknown as APIActionRowComponent<APIMessageActionRowComponent>);
 };
 
 export const buildMessageEmbed = (description: string): EmbedBuilder =>

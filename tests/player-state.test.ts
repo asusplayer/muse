@@ -35,6 +35,7 @@ vi.mock('../src/utils/get-guild-settings.js', () => ({
 
 vi.mock('../src/utils/build-embed.js', () => ({
   buildPlayingMessageEmbed: vi.fn(() => ({title: 'playing'})),
+  buildPlayerControls: vi.fn(() => []),
 }));
 
 import Player, {MediaSource, QueuedSong, SongMetadata, STATUS} from '../src/services/player.js';
@@ -770,5 +771,64 @@ describe('progress marker bounds', () => {
     expect(characters.filter(character => character === '🔘')).toHaveLength(1);
     expect(progressBar.startsWith('🔘')).toBe(startsWithMarker);
     expect(progressBar.endsWith('🔘')).toBe(endsWithMarker);
+  });
+});
+
+describe('persistent now-playing message refreshes', () => {
+  const withMessage = (edit: ReturnType<typeof vi.fn>) => {
+    const player = new Player({} as never, GUILD_ID);
+    player.add(makeSong('Current'));
+    const message = {edit, delete: vi.fn().mockResolvedValue(undefined)};
+    Object.assign(player, {nowPlayingMessage: message});
+
+    return {message, player};
+  };
+
+  it('never overlaps edits and coalesces refreshes requested meanwhile', async () => {
+    const firstEdit = makeDeferred<void>();
+    let inFlight = 0;
+    let maxInFlight = 0;
+    const edit = vi.fn(async () => {
+      inFlight++;
+      maxInFlight = Math.max(maxInFlight, inFlight);
+      if (edit.mock.calls.length === 1) {
+        await firstEdit.promise;
+      }
+
+      inFlight--;
+    });
+    const {player} = withMessage(edit);
+
+    const refreshes = [player.refreshNowPlayingMessage(), player.refreshNowPlayingMessage(), player.refreshNowPlayingMessage()];
+    firstEdit.resolve();
+    await Promise.all(refreshes);
+
+    expect(maxInFlight).toBe(1);
+    expect(edit).toHaveBeenCalledTimes(2);
+    expect(edit).toHaveBeenLastCalledWith({embeds: [{title: 'playing'}], components: []});
+  });
+
+  it('keeps a newer message when an edit of a replaced message fails', async () => {
+    const staleEdit = makeDeferred<void>();
+    const {message, player} = withMessage(vi.fn(async () => staleEdit.promise));
+    const refresh = player.refreshNowPlayingMessage();
+    const newerMessage = {edit: vi.fn(), delete: vi.fn()};
+    Object.assign(player, {nowPlayingMessage: newerMessage});
+
+    staleEdit.reject(new Error('Unknown Message'));
+    await refresh;
+
+    expect(message.delete).not.toHaveBeenCalled();
+    expect(newerMessage.delete).not.toHaveBeenCalled();
+    expect((player as unknown as {nowPlayingMessage: unknown}).nowPlayingMessage).toBe(newerMessage);
+  });
+
+  it('removes the message when its own edit fails', async () => {
+    const {message, player} = withMessage(vi.fn().mockRejectedValue(new Error('Missing Access')));
+
+    await player.refreshNowPlayingMessage();
+
+    expect(message.delete).toHaveBeenCalledOnce();
+    expect((player as unknown as {nowPlayingMessage: unknown}).nowPlayingMessage).toBeUndefined();
   });
 });

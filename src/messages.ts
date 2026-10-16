@@ -85,6 +85,9 @@ const messages = {
     upNext: 'Up next',
     moreInQueue: (count: number) => `…and ${count} more`,
   },
+  playerControls: {
+    notInBotChannel: 'join my voice channel to use the player controls',
+  },
   queue: {
     noPlayingSong: 'No playing song found',
     empty: 'queue is empty',
