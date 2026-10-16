@@ -11,11 +11,27 @@ export const sanitizeErrorDetail = (error: unknown) => {
     .slice(0, 500);
 };
 
+// HTTP client errors (got) only say "Response code 400"; host and path show which API failed. The query is dropped since it can hold keys.
+const getRequestEndpoint = (error: unknown) => {
+  const {response, options} = error as {response?: {url?: string}; options?: {url?: URL | string}};
+  const url = response?.url ?? options?.url;
+  if (!url) {
+    return '';
+  }
+
+  try {
+    const {host, pathname} = new URL(String(url));
+    return ` [${host}${pathname}]`;
+  } catch {
+    return '';
+  }
+};
+
 export const sanitizeErrorForLog = (error: unknown) => {
   const name = error instanceof Error ? error.name : 'Error';
   const detail = sanitizeErrorDetail(error);
 
-  return `${name}: ${detail || 'unknown error'}`;
+  return `${name}: ${detail || 'unknown error'}${getRequestEndpoint(error)}`;
 };
 
 export const errorText = (error?: string | Error): string => {
