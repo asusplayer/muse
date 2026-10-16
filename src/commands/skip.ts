@@ -6,6 +6,7 @@ import Command from './index.js';
 import {SlashCommandBuilder} from '@discordjs/builders';
 import {buildMessageEmbed, buildPlayingMessageEmbed} from '../utils/build-embed.js';
 import messages from '../messages.js';
+import {assertCanSkipMultiple, castSkipVote} from '../services/vote-skip.js';
 
 @injectable()
 export default class implements Command {
@@ -33,6 +34,17 @@ export default class implements Command {
     }
 
     const player = this.playerManager.get(interaction.guild!.id);
+
+    if (numToSkip > 1) {
+      await assertCanSkipMultiple(interaction, player);
+    } else {
+      const outcome = await castSkipVote(interaction, player);
+      if (outcome.kind === 'vote') {
+        await interaction.reply({embeds: [buildMessageEmbed(messages.voteSkip.voteCounted(outcome.votes, outcome.required))]});
+        return;
+      }
+    }
+
     await interaction.deferReply({ephemeral: true});
 
     try {

@@ -303,7 +303,9 @@ describe('SQLite persistence', () => {
         finished_at: Date | null;
         migration_name: string;
       }>>('SELECT migration_name, finished_at FROM _prisma_migrations ORDER BY migration_name');
-      expect(appliedMigrations).toHaveLength(20);
+      const migrationDirectories = (await fs.readdir(path.join(process.cwd(), 'migrations'), {withFileTypes: true}))
+        .filter(entry => entry.isDirectory());
+      expect(appliedMigrations).toHaveLength(migrationDirectories.length);
       expect(appliedMigrations.every(({finished_at: finishedAt}) => finishedAt !== null)).toBe(true);
       expect(appliedMigrations.map(({migration_name: name}) => name))
         .toContain('20220101155430_migrate_from_sequelize');

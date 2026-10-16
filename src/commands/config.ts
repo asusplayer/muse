@@ -93,6 +93,22 @@ export default class implements Command {
         .setMaxValue(30)
         .setRequired(true)))
     .addSubcommand(subcommand => subcommand
+      .setName('set-vote-skip')
+      .setDescription('set whether skipping requires votes from listeners')
+      .addBooleanOption(option => option
+        .setName('value')
+        .setDescription('whether skipping requires votes (requester and admins can always skip)')
+        .setRequired(true)))
+    .addSubcommand(subcommand => subcommand
+      .setName('set-vote-skip-percent')
+      .setDescription('set the share of listeners needed to skip a song')
+      .addIntegerOption(option => option
+        .setName('percent')
+        .setDescription('percentage of listeners in the voice channel')
+        .setMinValue(1)
+        .setMaxValue(100)
+        .setRequired(true)))
+    .addSubcommand(subcommand => subcommand
       .setName('get')
       .setDescription('show all settings'));
 
@@ -286,6 +302,40 @@ export default class implements Command {
         break;
       }
 
+      case 'set-vote-skip': {
+        const value = interaction.options.getBoolean('value')!;
+
+        await prisma.setting.update({
+          where: {
+            guildId: interaction.guild!.id,
+          },
+          data: {
+            voteSkip: value,
+          },
+        });
+
+        await interaction.reply({embeds: [buildMessageEmbed(messages.config.voteSkipUpdated)]});
+
+        break;
+      }
+
+      case 'set-vote-skip-percent': {
+        const value = interaction.options.getInteger('percent')!;
+
+        await prisma.setting.update({
+          where: {
+            guildId: interaction.guild!.id,
+          },
+          data: {
+            voteSkipPercent: value,
+          },
+        });
+
+        await interaction.reply({embeds: [buildMessageEmbed(messages.config.voteSkipPercentUpdated)]});
+
+        break;
+      }
+
       case 'get': {
         const embed = new EmbedBuilder().setTitle(messages.config.title);
 
@@ -304,6 +354,8 @@ export default class implements Command {
           [messages.config.labels.defaultQueuePageSize]: config.defaultQueuePageSize,
           [messages.config.labels.turnDownVolumeWhenPeopleSpeak]: config.turnDownVolumeWhenPeopleSpeak ? messages.common.yes : messages.common.no,
           [messages.config.labels.turnDownVolumeWhenPeopleSpeakTarget]: config.turnDownVolumeWhenPeopleSpeakTarget,
+          [messages.config.labels.voteSkip]: config.voteSkip ? messages.common.yes : messages.common.no,
+          [messages.config.labels.voteSkipPercent]: `${config.voteSkipPercent}%`,
         };
 
         let description = '';

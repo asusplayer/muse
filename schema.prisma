@@ -35,6 +35,8 @@ model Setting {
   defaultQueuePageSize                Int      @default(10)
   turnDownVolumeWhenPeopleSpeak       Boolean  @default(false)
   turnDownVolumeWhenPeopleSpeakTarget Int      @default(20)
+  voteSkip                            Boolean  @default(false)
+  voteSkipPercent                     Int      @default(50)
   createdAt                           DateTime @default(now())
   updatedAt                           DateTime @updatedAt
 }

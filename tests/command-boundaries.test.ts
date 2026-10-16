@@ -397,9 +397,11 @@ describe('/remove', () => {
 
 describe('queue navigation error boundaries', () => {
   it('publishes a successful /skip response after privately deferring failures', async () => {
+    mocks.getGuildSettings.mockResolvedValue({voteSkip: false});
     const player = {
       forward: vi.fn().mockResolvedValue(undefined),
       getCurrent: vi.fn(() => null),
+      getCurrentQueueEntryId: vi.fn(() => 1),
     };
     const {interaction, deferReply, deleteReply, followUp} = makeInteraction();
 
@@ -412,9 +414,11 @@ describe('queue navigation error boundaries', () => {
 
   it('defers /skip and preserves playback startup errors', async () => {
     const failure = new Error('FFmpeg startup failed');
+    mocks.getGuildSettings.mockResolvedValue({voteSkip: false});
     const player = {
       forward: vi.fn().mockRejectedValue(failure),
       getCurrent: vi.fn(() => ({title: 'Destination'})),
+      getCurrentQueueEntryId: vi.fn(() => 1),
     };
     const {interaction, deferReply, editReply} = makeInteraction();
 

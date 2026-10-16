@@ -5,8 +5,9 @@ import PlayerManager from '../managers/player.js';
 import Player, {STATUS} from '../services/player.js';
 import Command from './index.js';
 import {SlashCommandBuilder} from '@discordjs/builders';
-import {buildErrorEmbed, buildPlayingMessageEmbed, PLAYER_BUTTON_IDS} from '../utils/build-embed.js';
+import {buildErrorEmbed, buildMessageEmbed, buildPlayingMessageEmbed, PLAYER_BUTTON_IDS} from '../utils/build-embed.js';
 import {errorText} from '../utils/error-text.js';
+import {castSkipVote} from '../services/vote-skip.js';
 import messages from '../messages.js';
 
 const VOLUME_STEP = 10;
@@ -55,7 +56,7 @@ export default class implements Command {
     await interaction.deferUpdate();
 
     try {
-      await this.runControl(interaction.customId, player);
+      await this.runControl(interaction, player);
     } catch (error: unknown) {
       // Never let bot.ts replace the shared player message with an error.
       await interaction.followUp({
@@ -67,8 +68,8 @@ export default class implements Command {
     await player.refreshNowPlayingMessage();
   }
 
-  private async runControl(customId: string, player: Player): Promise<void> {
-    switch (customId) {
+  private async runControl(interaction: ButtonInteraction, player: Player): Promise<void> {
+    switch (interaction.customId) {
       case PLAYER_BUTTON_IDS.previous:
         try {
           await player.back();
@@ -91,7 +92,13 @@ export default class implements Command {
         }
 
         break;
-      case PLAYER_BUTTON_IDS.skip:
+      case PLAYER_BUTTON_IDS.skip: {
+        const outcome = await castSkipVote(interaction, player);
+        if (outcome.kind === 'vote') {
+          await interaction.followUp({embeds: [buildMessageEmbed(messages.voteSkip.voteCounted(outcome.votes, outcome.required))]});
+          break;
+        }
+
         try {
           await player.forward(1);
         } catch (error: unknown) {
@@ -103,6 +110,8 @@ export default class implements Command {
         }
 
         break;
+      }
+
       case PLAYER_BUTTON_IDS.stop:
         player.stop();
         break;

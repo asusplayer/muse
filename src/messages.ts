@@ -76,6 +76,11 @@ const messages = {
     invalidNumber: 'invalid number of songs to skip',
     success: 'keep \'er movin\'',
   },
+  voteSkip: {
+    voteCounted: (votes: number, required: number) => `🗳️ skip vote counted (${votes}/${required}), use /skip or ⏭️ to vote`,
+    notListening: 'you need to be listening in my voice channel to vote',
+    multipleNeedsPermission: 'only the requester or an admin can skip several songs while vote skip is on',
+  },
   unskip: {
     noSongToGoBack: 'no song to go back to',
     success: 'back \'er up\'',
@@ -105,6 +110,8 @@ const messages = {
     defaultQueuePageSizeUpdated: '👍 default queue page size updated',
     turnDownVolumeUpdated: '👍 turn down volume setting updated',
     turnDownVolumeTargetUpdated: '👍 turn down volume target setting updated',
+    voteSkipUpdated: '👍 vote skip setting updated',
+    voteSkipPercentUpdated: '👍 vote skip threshold updated',
     title: 'Config',
     labels: {
       playlistLimit: 'Playlist Limit',
@@ -117,6 +124,8 @@ const messages = {
       defaultQueuePageSize: 'Default queue page size',
       turnDownVolumeWhenPeopleSpeak: 'Reduce volume when people speak',
       turnDownVolumeWhenPeopleSpeakTarget: 'Reduce volume when people speak target',
+      voteSkip: 'Vote skip',
+      voteSkipPercent: 'Vote skip threshold',
     },
   },
   favorites: {

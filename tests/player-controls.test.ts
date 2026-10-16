@@ -10,6 +10,10 @@ vi.mock('../src/services/player.js', () => ({
   DEFAULT_VOLUME: 100,
 }));
 
+vi.mock('../src/utils/get-guild-settings.js', () => ({
+  getGuildSettings: vi.fn().mockResolvedValue({voteSkip: false, voteSkipPercent: 50}),
+}));
+
 import NowPlaying from '../src/commands/now-playing.js';
 import {buildPlayerControls, PLAYER_BUTTON_IDS} from '../src/utils/build-embed.js';
 
@@ -24,6 +28,7 @@ const makePlayer = (overrides: Record<string, unknown> = {}) => ({
   queueSize: vi.fn(() => 2),
   getCurrent: vi.fn(() => ({title: 'Song'})),
   getVoiceChannelId: vi.fn(() => 'voice-id'),
+  getCurrentQueueEntryId: vi.fn(() => 1),
   getConfiguredVolume: vi.fn(() => 50),
   back: vi.fn().mockResolvedValue(undefined),
   forward: vi.fn().mockResolvedValue(undefined),

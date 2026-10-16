@@ -31,6 +31,7 @@ import {
   type SongMetadata,
 } from './player-types.js';
 import {destroyVoiceConnection, recoverVoiceConnection} from './voice-connection-recovery.js';
+import {SkipVotes} from './vote-skip.js';
 import debug from '../utils/debug.js';
 import {getGuildSettings} from '../utils/get-guild-settings.js';
 import {buildPlayerControls, buildPlayingMessageEmbed} from '../utils/build-embed.js';
@@ -100,6 +101,7 @@ export default class {
   public guildId: string;
   public loopCurrentSong = false;
   public loopCurrentQueue = false;
+  public readonly skipVotes = new SkipVotes();
   private currentChannel: VoiceChannel | undefined;
   private voiceConnectionGeneration = 0;
   private pendingConnection?: {channelId: string; promise: Promise<void>};
