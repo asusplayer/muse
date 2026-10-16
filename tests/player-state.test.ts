@@ -832,3 +832,41 @@ describe('persistent now-playing message refreshes', () => {
     expect((player as unknown as {nowPlayingMessage: unknown}).nowPlayingMessage).toBeUndefined();
   });
 });
+
+describe('now-playing lyrics', () => {
+  const lyrics = {synced: [{time: 0, line: 'la'}], plain: 'la'};
+
+  it('keeps lyrics loaded for the current entry', async () => {
+    const player = new Player({} as never, GUILD_ID, undefined, undefined, vi.fn().mockResolvedValue(lyrics));
+    player.add(makeSong('Song'));
+
+    await (player as unknown as {loadLyrics: (song: QueuedSong) => Promise<void>}).loadLyrics(player.getCurrent()!);
+
+    expect(player.getCurrentLyrics()).toBe(lyrics);
+  });
+
+  it('drops lyrics that arrive after the song changed', async () => {
+    let resolveLyrics: (value: typeof lyrics) => void = () => undefined;
+    const player = new Player({} as never, GUILD_ID, undefined, undefined, async () => new Promise(resolve => {
+      resolveLyrics = resolve;
+    }));
+    player.add(makeSong('First'));
+    player.add(makeSong('Second'));
+
+    const loading = (player as unknown as {loadLyrics: (song: QueuedSong) => Promise<void>}).loadLyrics(player.getCurrent()!);
+    player.manualForward(1);
+    resolveLyrics(lyrics);
+    await loading;
+
+    expect(player.getCurrentLyrics()).toBeNull();
+  });
+});
+
+describe('playback position', () => {
+  it('follows the audio actually played rather than wall-clock time', () => {
+    const player = new Player({} as never, GUILD_ID);
+    Object.assign(player, {positionInSeconds: 40, playbackStartPosition: 30, audioResource: {playbackDuration: 4500}});
+
+    expect(player.getPlaybackPosition()).toBe(34.5);
+  });
+});

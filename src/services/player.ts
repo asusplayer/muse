@@ -32,6 +32,7 @@ import {
 } from './player-types.js';
 import {destroyVoiceConnection, recoverVoiceConnection} from './voice-connection-recovery.js';
 import {SkipVotes} from './vote-skip.js';
+import type {Lyrics} from './lyrics.js';
 import debug from '../utils/debug.js';
 import {getGuildSettings} from '../utils/get-guild-settings.js';
 import {buildPlayerControls, buildPlayingMessageEmbed} from '../utils/build-embed.js';
@@ -40,6 +41,8 @@ import {Setting} from '@prisma/client';
 
 export {DEFAULT_VOLUME, MediaSource, STATUS};
 export type {AgeRestrictedFallbackResolver, PlayerEvents, QueuedPlaylist, QueuedSong, SongMetadata};
+
+export type LyricsResolver = (song: QueuedSong) => Promise<Lyrics | null>;
 
 const FFMPEG_STARTUP_TIMEOUT_MS = 20_000;
 const VOICE_CONNECTION_ATTEMPTS = 3;
@@ -122,11 +125,14 @@ export default class {
   private nowPlayingMessageInterval: NodeJS.Timeout | undefined;
   private nowPlayingMessageEdit: Promise<void> | undefined;
   private nowPlayingMessageEditQueued = false;
+  private currentLyrics: {song: QueuedSong; entryId: number; lyrics: Lyrics | null} | null = null;
 
   private positionInSeconds = 0;
+  private playbackStartPosition = 0;
   private readonly fileCache: FileCacheProvider;
   private readonly ageRestrictedFallbackResolver?: AgeRestrictedFallbackResolver;
   private readonly client?: Client;
+  private readonly lyricsResolver?: LyricsResolver;
   private disconnectTimer: NodeJS.Timeout | null = null;
 
   private readonly channelToSpeakingUsers: Map<string, Set<string>> = new Map();
@@ -135,11 +141,12 @@ export default class {
   private voiceActivitySessionGeneration = 0;
   private hasRegisteredVoiceActivityListener = false;
 
-  constructor(fileCache: FileCacheProvider, guildId: string, ageRestrictedFallbackResolver?: AgeRestrictedFallbackResolver, client?: Client) {
+  constructor(fileCache: FileCacheProvider, guildId: string, ageRestrictedFallbackResolver?: AgeRestrictedFallbackResolver, client?: Client, lyricsResolver?: LyricsResolver) {
     this.fileCache = fileCache;
     this.guildId = guildId;
     this.ageRestrictedFallbackResolver = ageRestrictedFallbackResolver;
     this.client = client;
+    this.lyricsResolver = lyricsResolver;
     this.playbackAttempts = new PlaybackAttemptTracker(() => ({
       currentSong: this.getCurrent(),
       queueEntryVersion: this.getCurrentQueueEntryId(),
@@ -222,6 +229,15 @@ export default class {
 
   getPosition(): number {
     return this.positionInSeconds;
+  }
+
+  // Unlike the wall-clock counter, this stops while the stream stalls, so it stays in sync with what listeners hear.
+  getPlaybackPosition(): number {
+    if (!this.audioResource) {
+      return this.positionInSeconds;
+    }
+
+    return this.playbackStartPosition + (this.audioResource.playbackDuration / 1000);
   }
 
   async play(allowAgeRestrictedFallback = true): Promise<void> {
@@ -423,6 +439,15 @@ export default class {
 
   getCurrentQueueEntryId(): number | null {
     return this.getCurrent() === null ? null : this.currentQueueEntryVersion;
+  }
+
+  getCurrentLyrics(): Lyrics | null {
+    const loaded = this.currentLyrics;
+    if (!loaded || loaded.song !== this.getCurrent() || loaded.entryId !== this.getCurrentQueueEntryId()) {
+      return null;
+    }
+
+    return loaded.lyrics;
   }
 
   /**
@@ -943,6 +968,7 @@ export default class {
   private startTrackingPosition(initalPosition?: number): void {
     if (initalPosition !== undefined) {
       this.positionInSeconds = initalPosition;
+      this.playbackStartPosition = initalPosition;
     }
 
     if (this.playPositionInterval) {
@@ -1172,6 +1198,27 @@ export default class {
       this.nowPlayingMessageInterval = setInterval(() => {
         void this.refreshNowPlayingMessage();
       }, 1_000);
+
+      if (settings.nowPlayingLyrics) {
+        void this.loadLyrics(song);
+      }
+    } catch (error: unknown) {
+      debug(error);
+    }
+  }
+
+  private async loadLyrics(song: QueuedSong): Promise<void> {
+    const entryId = this.getCurrentQueueEntryId();
+    if (!this.lyricsResolver || entryId === null) {
+      return;
+    }
+
+    try {
+      const lyrics = await this.lyricsResolver(song);
+      // The song may have changed while the lookup was running.
+      if (this.getCurrent() === song && this.getCurrentQueueEntryId() === entryId) {
+        this.currentLyrics = {song, entryId, lyrics};
+      }
     } catch (error: unknown) {
       debug(error);
     }

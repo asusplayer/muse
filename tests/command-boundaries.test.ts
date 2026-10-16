@@ -38,6 +38,7 @@ import Favorites from '../src/commands/favorites.js';
 import ForwardSeek from '../src/commands/fseek.js';
 import LoopQueue from '../src/commands/loop-queue.js';
 import Loop from '../src/commands/loop.js';
+import Lyrics from '../src/commands/lyrics.js';
 import Move from '../src/commands/move.js';
 import Next from '../src/commands/next.js';
 import NowPlaying from '../src/commands/now-playing.js';
@@ -84,6 +85,7 @@ const makeQueuePlayer = (upcomingCount: number) => {
     queueSize: () => upcoming.length,
     getPosition: () => 0,
     getVolume: () => 100,
+    getCurrentLyrics: () => null,
   };
 };
 
@@ -126,6 +128,7 @@ const COMMAND_NAMES = [
   'fseek',
   'loop-queue',
   'loop',
+  'lyrics',
   'move',
   'next',
   'now-playing',
@@ -155,6 +158,7 @@ const makeCommands = () => {
     new ForwardSeek(playerManager),
     new LoopQueue(playerManager),
     new Loop(playerManager),
+    new Lyrics(playerManager, {} as never),
     new Move(playerManager),
     new Next(playerManager),
     new NowPlaying(playerManager),
@@ -198,12 +202,12 @@ beforeEach(() => {
 });
 
 describe('command metadata', () => {
-  it('publishes the exact 22 unique command names', () => {
+  it('publishes the exact 23 unique command names', () => {
     const serialized = makeCommands().map(command => command.slashCommand.toJSON());
     const names = serialized.map(command => command.name);
 
-    expect(serialized).toHaveLength(22);
-    expect(new Set(names)).toHaveLength(22);
+    expect(serialized).toHaveLength(23);
+    expect(new Set(names)).toHaveLength(23);
     expect([...names].sort()).toEqual([...COMMAND_NAMES].sort());
   });
 
@@ -230,7 +234,7 @@ describe('command metadata', () => {
       'unskip',
       'volume',
     ];
-    const neverRequiresVoice = ['config', 'move', 'now-playing', 'queue', 'remove'];
+    const neverRequiresVoice = ['config', 'lyrics', 'move', 'now-playing', 'queue', 'remove'];
 
     for (const name of alwaysRequiresVoice) {
       expect(commandsByName.get(name)?.requiresVC, `/${name}`).toBe(true);

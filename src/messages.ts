@@ -88,7 +88,12 @@ const messages = {
   nowPlaying: {
     nothingPlaying: 'nothing is currently playing',
     upNext: 'Up next',
+    lyrics: '🎤 Lyrics',
     moreInQueue: (count: number) => `…and ${count} more`,
+  },
+  lyrics: {
+    notFound: 'no lyrics found for this song',
+    title: (title: string) => `Lyrics: ${title}`,
   },
   playerControls: {
     notInBotChannel: 'join my voice channel to use the player controls',
@@ -112,6 +117,7 @@ const messages = {
     turnDownVolumeTargetUpdated: '👍 turn down volume target setting updated',
     voteSkipUpdated: '👍 vote skip setting updated',
     voteSkipPercentUpdated: '👍 vote skip threshold updated',
+    nowPlayingLyricsUpdated: '👍 now playing lyrics setting updated',
     title: 'Config',
     labels: {
       playlistLimit: 'Playlist Limit',
@@ -126,6 +132,7 @@ const messages = {
       turnDownVolumeWhenPeopleSpeakTarget: 'Reduce volume when people speak target',
       voteSkip: 'Vote skip',
       voteSkipPercent: 'Vote skip threshold',
+      nowPlayingLyrics: 'Show lyrics in now playing message',
     },
   },
   favorites: {

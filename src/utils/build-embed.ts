@@ -13,6 +13,7 @@ import getProgressBar from './get-progress-bar.js';
 import {prettyTime} from './time.js';
 import {truncate} from './string.js';
 import messages from '../messages.js';
+import {getLyricLinesAt} from '../services/lyrics.js';
 
 const getMaxSongTitleLength = (title: string) => {
   // eslint-disable-next-line no-control-regex
@@ -66,6 +67,10 @@ const getPlayerUI = (player: Player) => {
 
 const UP_NEXT_PREVIEW_SIZE = 3;
 const EMBED_FIELD_VALUE_LIMIT = 1024;
+
+// The message is edited about once a second and Discord needs a moment to show it,
+// so lyrics shown at the exact position trail the audio; looking ahead compensates.
+const LYRICS_LEAD_SECONDS = 1.5;
 
 const getUpNextPreview = (player: Player): string | null => {
   const queue = player.getQueue();
@@ -161,6 +166,12 @@ export const buildPlayingMessageEmbed = (player: Player): EmbedBuilder => {
       ${getPlayerUI(player)}
     `)
     .setFooter({text: `Source: ${artist}`});
+
+  const lyricLines = player.getCurrentLyrics()?.synced;
+  if (lyricLines?.length) {
+    const {previous, current, next} = getLyricLinesAt(lyricLines, player.getPlaybackPosition() + (currentlyPlaying.offset ?? 0) + LYRICS_LEAD_SECONDS);
+    message.addFields({name: messages.nowPlaying.lyrics, value: truncate([previous, `**${current ?? '♪'}**`, next].filter(Boolean).join('\n'), 1024)});
+  }
 
   const upNext = getUpNextPreview(player);
   if (upNext) {

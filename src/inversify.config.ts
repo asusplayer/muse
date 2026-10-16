@@ -13,6 +13,7 @@ import AddQueryToQueue from './services/add-query-to-queue.js';
 import GetSongs from './services/get-songs.js';
 import YoutubeAPI from './services/youtube-api.js';
 import SpotifyAPI from './services/spotify-api.js';
+import LyricsService from './services/lyrics.js';
 
 // Commands
 import Command from './commands/index.js';
@@ -22,6 +23,7 @@ import Disconnect from './commands/disconnect.js';
 import Favorites from './commands/favorites.js';
 import ForwardSeek from './commands/fseek.js';
 import LoopQueue from './commands/loop-queue.js';
+import LyricsCommand from './commands/lyrics.js';
 import Loop from './commands/loop.js';
 import Move from './commands/move.js';
 import Next from './commands/next.js';
@@ -64,6 +66,7 @@ container.bind(TYPES.Config).toConstantValue(new ConfigProvider());
 container.bind<GetSongs>(TYPES.Services.GetSongs).to(GetSongs).inSingletonScope();
 container.bind<AddQueryToQueue>(TYPES.Services.AddQueryToQueue).to(AddQueryToQueue).inSingletonScope();
 container.bind<YoutubeAPI>(TYPES.Services.YoutubeAPI).to(YoutubeAPI).inSingletonScope();
+container.bind<LyricsService>(TYPES.Services.Lyrics).to(LyricsService).inSingletonScope();
 
 // Only instanciate spotify dependencies if the Spotify client ID and secret are set
 const config = container.get<ConfigProvider>(TYPES.Config);
@@ -81,6 +84,7 @@ if (config.SPOTIFY_CLIENT_ID !== '' && config.SPOTIFY_CLIENT_SECRET !== '') {
   ForwardSeek,
   LoopQueue,
   Loop,
+  LyricsCommand,
   Move,
   Next,
   NowPlaying,
