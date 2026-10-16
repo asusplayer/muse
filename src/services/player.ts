@@ -1138,7 +1138,7 @@ export default class {
 
       this.nowPlayingMessageInterval = setInterval(() => {
         void this.updateNowPlayingMessage();
-      }, 10_000);
+      }, 1_000);
     } catch (error: unknown) {
       debug(error);
     }
