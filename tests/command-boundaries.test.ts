@@ -27,7 +27,7 @@ vi.mock('../src/utils/db.js', () => ({
 vi.mock('../src/services/player.js', () => ({
   default: class {},
   STATUS: {PLAYING: 0, PAUSED: 1, IDLE: 2},
-  MediaSource: {Youtube: 0, HLS: 1},
+  MediaSource: {Youtube: 0, HLS: 1, SoundCloud: 2},
   DEFAULT_VOLUME: 100,
 }));
 
@@ -53,7 +53,7 @@ import Skip from '../src/commands/skip.js';
 import Stop from '../src/commands/stop.js';
 import Unskip from '../src/commands/unskip.js';
 import Volume from '../src/commands/volume.js';
-import {buildMessageEmbed, buildQueueEmbed} from '../src/utils/build-embed.js';
+import {buildMessageEmbed, buildPlayingMessageEmbed, buildQueueEmbed} from '../src/utils/build-embed.js';
 import durationStringToSeconds from '../src/utils/duration-string-to-seconds.js';
 
 const STATUS = {PLAYING: 0, PAUSED: 1, IDLE: 2} as const;
@@ -95,6 +95,8 @@ const makeInteraction = (options: {
   const reply = vi.fn().mockResolvedValue(undefined);
   const deferReply = vi.fn().mockResolvedValue(undefined);
   const editReply = vi.fn().mockResolvedValue(undefined);
+  const deleteReply = vi.fn().mockResolvedValue(undefined);
+  const followUp = vi.fn().mockResolvedValue(undefined);
 
   const interaction = {
     guild: {id: 'guild'},
@@ -107,9 +109,11 @@ const makeInteraction = (options: {
     reply,
     deferReply,
     editReply,
+    deleteReply,
+    followUp,
   } as unknown as ChatInputCommandInteraction;
 
-  return {interaction, reply, deferReply, editReply};
+  return {interaction, reply, deferReply, editReply, deleteReply, followUp};
 };
 
 const managerFor = (player: object) => ({get: () => player});
@@ -272,6 +276,40 @@ describe('command metadata', () => {
 });
 
 describe('/queue', () => {
+  it('links SoundCloud tracks to SoundCloud and shows their finite duration', () => {
+    const song = {...makeSong(1), source: 2, url: 'https://soundcloud.com/artist/track'};
+    const player = {...makeQueuePlayer(0), getCurrent: () => song};
+    const embed = buildQueueEmbed(player as never, 1, 10).toJSON();
+    expect(embed.description).toContain('[Song 1](https://soundcloud.com/artist/track)');
+    expect(embed.description).toContain('[00:00/02:00]');
+    expect(embed.description).not.toContain('youtube.com');
+  });
+
+  it('bounds a full queue page containing long SoundCloud titles and URLs', () => {
+    const player = {...makeQueuePlayer(30), getQueue: () => Array.from({length: 30}, (_, i) => ({
+      ...makeSong(i + 2), source: 2, title: 'x'.repeat(100),
+      url: `https://soundcloud.com/artist/${'long-track-slug-'.repeat(15)}${i}`,
+    }))};
+    const embed = buildQueueEmbed(player as never, 1, 30).toJSON();
+    expect(embed.description!.length).toBeLessThanOrEqual(4096);
+    expect(embed.description).not.toContain('x'.repeat(100));
+    expect(embed.description).toContain('use a smaller page-size');
+  });
+
+  it('keeps current-track embeds valid for oversized SoundCloud share URLs', () => {
+    const song = {...makeSong(1), source: 2, length: 59.9,
+      url: `https://soundcloud.com/artist/track?tracking=${'x'.repeat(5000)}`};
+    const player = {...makeQueuePlayer(0), getCurrent: () => song};
+    for (const embed of [buildQueueEmbed(player as never, 1, 10), buildPlayingMessageEmbed(player as never)]) {
+      const {description} = embed.toJSON();
+      expect(description!.length).toBeLessThanOrEqual(4096);
+      expect(description).toContain('Song 1');
+      expect(description).not.toContain('tracking=');
+      expect(description).toContain('[00:00/00:59]');
+    }
+    expect(song.length).toBe(59.9);
+  });
+
   it('shows page 1 for a current-only queue', () => {
     const embed = buildQueueEmbed(makeQueuePlayer(0) as never, 1, 10).toJSON();
 
@@ -318,6 +356,50 @@ describe('/remove', () => {
 
     expect(upcoming).toEqual(['first']);
     expect(reply).toHaveBeenCalledWith({embeds: [buildMessageEmbed(':wastebasket: removed')]});
+  });
+});
+
+describe('queue navigation error boundaries', () => {
+  it('publishes a successful /skip response after privately deferring failures', async () => {
+    const player = {
+      forward: vi.fn().mockResolvedValue(undefined),
+      getCurrent: vi.fn(() => null),
+    };
+    const {interaction, deferReply, deleteReply, followUp} = makeInteraction();
+
+    await new Skip(managerFor(player) as never).execute(interaction);
+
+    expect(deferReply).toHaveBeenCalledWith({ephemeral: true});
+    expect(followUp).toHaveBeenCalledWith({embeds: [buildMessageEmbed('keep \'er movin\'')]});
+    expect(deleteReply).toHaveBeenCalledOnce();
+  });
+
+  it('defers /skip and preserves playback startup errors', async () => {
+    const failure = new Error('FFmpeg startup failed');
+    const player = {
+      forward: vi.fn().mockRejectedValue(failure),
+      getCurrent: vi.fn(() => ({title: 'Destination'})),
+    };
+    const {interaction, deferReply, editReply} = makeInteraction();
+
+    await expect(new Skip(managerFor(player) as never).execute(interaction)).rejects.toBe(failure);
+
+    expect(deferReply).toHaveBeenCalledWith({ephemeral: true});
+    expect(editReply).not.toHaveBeenCalled();
+  });
+
+  it('defers /unskip and preserves playback startup errors', async () => {
+    const failure = new Error('FFmpeg startup failed');
+    const player = {
+      back: vi.fn().mockRejectedValue(failure),
+      getCurrent: vi.fn(() => ({title: 'Destination'})),
+    };
+    const {interaction, deferReply, editReply} = makeInteraction();
+
+    await expect(new Unskip(managerFor(player) as never).execute(interaction)).rejects.toBe(failure);
+
+    expect(deferReply).toHaveBeenCalledWith({ephemeral: true});
+    expect(editReply).not.toHaveBeenCalled();
   });
 });
 

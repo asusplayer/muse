@@ -70,7 +70,7 @@ vi.mock('../src/utils/channels.js', () => ({
 
 import Play from '../src/commands/play.js';
 import AddQueryToQueue from '../src/services/add-query-to-queue.js';
-import Player, {MediaSource, QueuedSong, SongMetadata, STATUS} from '../src/services/player.js';
+import Player, {FfmpegMediaUnavailableError, MediaSource, QueuedSong, SongMetadata, STATUS} from '../src/services/player.js';
 import {getYouTubeMediaSource, YtDlpMediaUnavailableError} from '../src/utils/yt-dlp.js';
 import {buildMessageEmbed} from '../src/utils/build-embed.js';
 
@@ -128,7 +128,9 @@ const makeReadyPlayer = () => {
 };
 
 const makeProductionStreamPlayer = () => {
-  const fileCache = {getPathFor: vi.fn().mockResolvedValue('/cached/audio.webm')};
+  const fileCache = {
+    getEntryFor: vi.fn().mockResolvedValue({generation: 'cached-generation', path: '/cached/audio.webm'}),
+  };
   const player = new Player(fileCache as never, GUILD_ID);
   const voiceConnection = makeVoiceConnection();
   const createReadStream = vi.fn().mockResolvedValue(Readable.from([]));
@@ -397,7 +399,7 @@ describe('PLAY-09 shuffled additions preservation', () => {
     player.add(makeQueuedSong('Current'));
     player.add(makeQueuedSong('Existing upcoming'));
     player.manualForward(1);
-    player.voiceConnection = {} as never;
+    player.voiceConnection = {state: {status: 'ready'}} as never;
     player.status = STATUS.PLAYING;
     const resolvedSongs = [makeSong('New one'), makeSong('New two'), makeSong('New three')];
     const getSongs = {getSongs: vi.fn().mockResolvedValue([resolvedSongs, ''])};
@@ -569,6 +571,7 @@ describe('PLAY-14 unplayable queue continuation preservation', () => {
     [new YtDlpMediaUnavailableError('private video', 'unavailable'), 'private media'],
     [new YtDlpMediaUnavailableError('video has been removed', 'unavailable'), 'removed media'],
     [new YtDlpMediaUnavailableError('sign in to confirm your age', 'age-restricted'), 'age-restricted media without a fallback'],
+    [new FfmpegMediaUnavailableError(new Error('Server returned 403 Forbidden')), 'rejected FFmpeg media URL'],
     [{statusCode: 410}, 'HTTP 410 media'],
   ])('advances exactly once past %s (%s)', async playbackError => {
     const warning = vi.spyOn(console, 'warn').mockImplementation(() => undefined);

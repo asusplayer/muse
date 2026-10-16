@@ -35,14 +35,16 @@ export default class implements Command {
       throw new Error(messages.resume.nothingToPlay);
     }
 
+    await interaction.deferReply({ephemeral: true});
     await player.connect(targetVoiceChannel);
     await player.play();
     if (!player.getCurrent()) {
       throw new Error('no playable songs found');
     }
 
-    await interaction.reply({
+    await interaction.followUp({
       embeds: [buildMessageEmbed(messages.resume.success), buildPlayingMessageEmbed(player)],
     });
+    await interaction.deleteReply().catch(() => undefined);
   }
 }

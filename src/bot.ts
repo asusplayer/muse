@@ -16,12 +16,30 @@ import {REST} from '@discordjs/rest';
 import {Routes} from 'discord-api-types/v10';
 import registerCommandsOnGuild from './utils/register-commands-on-guild.js';
 
+const sanitizeErrorDetail = (error: unknown) => {
+  const message = error instanceof Error ? error.message : String(error);
+  return message
+    .replace(/https?:\/\/\S+/gi, '[URL]')
+    .replace(/(["']?\b(?:api[-_]?key|key|token|authorization|cookie)["']?\s*[:=]\s*)(?:["'][^"']*["']|Bearer\s+[^,;\s]+|[^,;\s}\]]+)/gi, '$1[redacted]')
+    .replace(/\b(authorization|cookie)\s*[:=]\s*[^\r\n]*/gi, '$1: [redacted]')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 500);
+};
+
+const sanitizeErrorForLog = (error: unknown) => {
+  const name = error instanceof Error ? error.name : 'Error';
+  const detail = sanitizeErrorDetail(error);
+
+  return `${name}: ${detail || 'unknown error'}`;
+};
+
 const errorText = (error?: string | Error): string => {
   if (!error) {
     return messages.common.unknownError;
   }
 
-  return `${messages.common.errorPrefix} ${typeof error === 'string' ? error : error.message}`;
+  return `${messages.common.errorPrefix} ${typeof error === 'string' ? error : sanitizeErrorDetail(error)}`;
 };
 
 @injectable()
@@ -109,8 +127,14 @@ export default class {
           }
         }
       } catch (error: unknown) {
-        debug(error);
-
+        const sanitizedError = sanitizeErrorForLog(error);
+        debug(sanitizedError);
+        const interactionName = interaction.isCommand() || interaction.isAutocomplete()
+          ? `/${interaction.commandName}`
+          : interaction.isButton()
+            ? `button:${interaction.customId}`
+            : interaction.type.toString();
+        console.error(`Discord interaction failed (${interactionName}, guild=${interaction.guildId ?? 'dm'}, channel=${interaction.channelId ?? 'unknown'}, user=${interaction.user.id}): ${sanitizedError}`);
         // This can fail if the message was deleted, and we don't want to crash the whole bot
         try {
           if ((interaction.isCommand() || interaction.isButton()) && (interaction.replied || interaction.deferred)) {

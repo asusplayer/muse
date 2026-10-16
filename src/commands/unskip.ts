@@ -23,14 +23,20 @@ export default class implements Command {
 
   public async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     const player = this.playerManager.get(interaction.guild!.id);
+    await interaction.deferReply({ephemeral: true});
 
     try {
       await player.back();
-      await interaction.reply({
+      await interaction.followUp({
         embeds: [buildMessageEmbed(messages.unskip.success), ...(player.getCurrent() ? [buildPlayingMessageEmbed(player)] : [])],
       });
-    } catch (_: unknown) {
-      throw new Error(messages.unskip.noSongToGoBack);
+      await interaction.deleteReply().catch(() => undefined);
+    } catch (error: unknown) {
+      if (error instanceof Error && error.message === 'No songs in queue to go back to.') {
+        throw new Error(messages.unskip.noSongToGoBack);
+      }
+
+      throw error;
     }
   }
 }

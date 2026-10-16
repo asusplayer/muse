@@ -6,6 +6,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.11.8] - 2026-09-20
+
+- Retry stalled initial voice handshakes within a bounded wait, share concurrent joins, and report the failed network phase without exposing voice credentials.
+- Connect before queueing new requests so failed voice joins do not leave unexpected tracks behind.
+- Handle Discord audio resource errors without crashing Muse and continue normal queue advancement.
+- Keep chapter and SponsorBlock cache boundaries separate so short cached excerpts cannot truncate full tracks. Existing audio caches refill as needed.
+- Apply SponsorBlock trimming within each chapter's original timestamps so split tracks play the correct audio.
+- Ignore stale listener-departure events after the voice connection or channel changes.
+- Prevent early YouTube playlist metadata failures from becoming unhandled rejections while later pages load.
+- Refresh expired metadata without racing concurrent requests to delete the same cache row.
+- Validate PR snapshot provenance before granting publishing access and restrict snapshot tags to the corresponding PR preview.
+- Resolve SoundCloud tracks, share links, and bounded playlists with yt-dlp instead of probing HTML pages as audio streams, and refresh media URLs when playback begins.
+
+## [2.11.7] - 2026-08-20
+
+- Detect FFmpeg failures before reporting playback as started, skip failed queued tracks instead of wedging the player, and retain bounded failure details in the container log.
+- Log failed Discord interactions with command and guild context so playback incidents can be diagnosed after the fact.
+
 ## [2.11.6] - 2026-07-12
 
 - Add optional age-verified YouTube cookie-file support for age-restricted playback.
@@ -404,7 +422,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release
 
-[unreleased]: https://github.com/museofficial/muse/compare/v2.11.6...HEAD
+[unreleased]: https://github.com/museofficial/muse/compare/v2.11.7...HEAD
+[2.11.8]: https://github.com/museofficial/muse/compare/v2.11.7...v2.11.8
+[2.11.7]: https://github.com/museofficial/muse/compare/v2.11.6...v2.11.7
 [2.11.6]: https://github.com/museofficial/muse/compare/v2.11.5...v2.11.6
 [2.11.5]: https://github.com/museofficial/muse/compare/v2.11.4...v2.11.5
 [2.11.4]: https://github.com/museofficial/muse/compare/v2.11.3...v2.11.4
