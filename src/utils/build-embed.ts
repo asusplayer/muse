@@ -56,6 +56,39 @@ const getPlayerUI = (player: Player) => {
   return `${button} ${progressBar} \`[${elapsedTime}]\`🔉 ${vol} ${loop}`;
 };
 
+const UP_NEXT_PREVIEW_SIZE = 3;
+const EMBED_FIELD_VALUE_LIMIT = 1024;
+
+const getUpNextPreview = (player: Player): string | null => {
+  const queue = player.getQueue();
+  if (queue.length === 0) {
+    return null;
+  }
+
+  const lines = queue.slice(0, UP_NEXT_PREVIEW_SIZE).map((song, index) => {
+    const duration = song.isLive ? 'live' : prettyTime(song.length);
+    return `\`${index + 1}.\` ${getSongTitle(song, true)} \`[${duration}]\``;
+  });
+
+  const remaining = queue.length - lines.length;
+  const moreLine = remaining > 0 ? messages.nowPlaying.moreInQueue(remaining) : '';
+  let value = '';
+  for (const line of lines) {
+    const candidate = value === '' ? line : `${value}\n${line}`;
+    if (candidate.length + moreLine.length + 1 > EMBED_FIELD_VALUE_LIMIT) {
+      break;
+    }
+
+    value = candidate;
+  }
+
+  if (value === '') {
+    value = truncate(queue[0].title, EMBED_FIELD_VALUE_LIMIT - moreLine.length - 1);
+  }
+
+  return moreLine === '' ? value : `${value}\n${moreLine}`;
+};
+
 export const buildMessageEmbed = (description: string): EmbedBuilder =>
   new EmbedBuilder().setColor('DarkGreen').setDescription(description);
 
@@ -80,6 +113,11 @@ export const buildPlayingMessageEmbed = (player: Player): EmbedBuilder => {
       ${getPlayerUI(player)}
     `)
     .setFooter({text: `Source: ${artist}`});
+
+  const upNext = getUpNextPreview(player);
+  if (upNext) {
+    message.addFields({name: messages.nowPlaying.upNext, value: upNext});
+  }
 
   if (thumbnailUrl) {
     message.setThumbnail(thumbnailUrl);

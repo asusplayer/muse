@@ -82,6 +82,8 @@ const messages = {
   },
   nowPlaying: {
     nothingPlaying: 'nothing is currently playing',
+    upNext: 'Up next',
+    moreInQueue: (count: number) => `…and ${count} more`,
   },
   queue: {
     noPlayingSong: 'No playing song found',

@@ -329,6 +329,42 @@ describe('/queue', () => {
   });
 });
 
+describe('now-playing up next preview', () => {
+  const upNextField = (player: object) => buildPlayingMessageEmbed(player as never).toJSON()
+    .fields?.find(field => field.name === 'Up next');
+
+  it('omits the preview when nothing is queued', () => {
+    expect(upNextField(makeQueuePlayer(0))).toBeUndefined();
+  });
+
+  it('lists every upcoming song when there are at most three', () => {
+    const value = upNextField(makeQueuePlayer(2))!.value;
+
+    expect(value).toContain('`1.` [Song 2]');
+    expect(value).toContain('`2.` [Song 3]');
+    expect(value).toContain('[02:00]');
+    expect(value).not.toContain('more');
+  });
+
+  it('shows the next three songs and counts the rest', () => {
+    const value = upNextField(makeQueuePlayer(5))!.value;
+
+    expect(value).toContain('`3.` [Song 4]');
+    expect(value).not.toContain('Song 5');
+    expect(value).toContain('…and 2 more');
+  });
+
+  it('stays within the embed field limit for long SoundCloud URLs', () => {
+    const player = {...makeQueuePlayer(5), getQueue: () => Array.from({length: 5}, (_, i) => ({
+      ...makeSong(i + 2), source: 2, url: `https://soundcloud.com/artist/${'slug-'.repeat(190)}${i}`,
+    }))};
+    const value = upNextField(player)!.value;
+
+    expect(value.length).toBeLessThanOrEqual(1024);
+    expect(value).toContain('…and');
+  });
+});
+
 describe('/remove', () => {
   it('rejects a starting position beyond the upcoming queue without replying', async () => {
     const upcoming = ['first', 'second'];
