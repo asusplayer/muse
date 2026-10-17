@@ -14,10 +14,12 @@ import AddQueryToQueue from '../services/add-query-to-queue.js';
 import {truncate} from '../utils/string.js';
 import messages from '../messages.js';
 
-// A link in the text wins, then a link preview (e.g. a shared Spotify card), then the text as a search query.
-export const getQueryFromMessage = ({content, embeds}: Pick<Message, 'content' | 'embeds'>): string | undefined => (
-  /https?:\/\/\S+/.exec(content)?.[0] ?? embeds.find(embed => embed.url)?.url ?? (content.trim() || undefined)
-);
+// A link in the text wins, then one in an embed (link previews, or the bot's own now-playing and queue
+// messages with markdown links), then the text as a search query.
+export const getQueryFromMessage = ({content, embeds}: Pick<Message, 'content' | 'embeds'>): string | undefined => {
+  const texts = [content, ...embeds.flatMap(embed => [embed.url, embed.description, ...embed.fields.map(field => field.value)])];
+  return /https?:\/\/[^\s)>]+/.exec(texts.filter(Boolean).join('\n'))?.[0] ?? (content.trim() || undefined);
+};
 
 @injectable()
 export default class implements Command {

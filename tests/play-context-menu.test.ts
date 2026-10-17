@@ -3,7 +3,10 @@ import {describe, expect, it} from 'vitest';
 import Play, {getQueryFromMessage} from '../src/commands/play.js';
 import {getCommandBodies} from '../src/utils/register-commands-on-guild.js';
 
-const message = (content: string, embedUrls: Array<string | null> = []) => ({content, embeds: embedUrls.map(url => ({url}))}) as never;
+const message = (content: string, embedUrls: Array<string | null> = [], description: string | null = null) => ({
+  content,
+  embeds: [...embedUrls.map(url => ({url, description: null, fields: []})), ...(description ? [{url: null, description, fields: []}] : [])],
+}) as never;
 
 describe('Play message context menu', () => {
   it('takes the first link from the text, then a link preview, then the text', () => {
@@ -11,6 +14,11 @@ describe('Play message context menu', () => {
     expect(getQueryFromMessage(message('', [null, 'https://www.youtube.com/watch?v=id']))).toBe('https://www.youtube.com/watch?v=id');
     expect(getQueryFromMessage(message('  clean bandit symphony  '))).toBe('clean bandit symphony');
     expect(getQueryFromMessage(message('   '))).toBeUndefined();
+  });
+
+  it('plays the song linked in the bot\'s own now-playing message', () => {
+    const nowPlaying = '**[Quarterhead - You Spin Me Round](https://www.youtube.com/watch?v=abc123&t=5)**\nRequested by: <@1>';
+    expect(getQueryFromMessage(message('', [], nowPlaying))).toBe('https://www.youtube.com/watch?v=abc123&t=5');
   });
 
   it('is registered next to the /play slash command', () => {
