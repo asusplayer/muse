@@ -19,6 +19,8 @@ const dependencyMocks = vi.hoisted(() => ({
   joinVoiceChannel: vi.fn(),
 }));
 
+vi.mock('../src/services/play-history.js', () => ({recordPlay: vi.fn().mockResolvedValue(undefined)}));
+
 vi.mock('array-shuffle', () => ({
   default: dependencyMocks.arrayShuffle,
 }));

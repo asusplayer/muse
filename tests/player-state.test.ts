@@ -9,6 +9,8 @@ const dependencyMocks = vi.hoisted(() => ({
   joinVoiceChannel: vi.fn(),
 }));
 
+vi.mock('../src/services/play-history.js', () => ({recordPlay: vi.fn().mockResolvedValue(undefined)}));
+
 vi.mock('@discordjs/voice', () => ({
   AudioPlayerStatus: {Idle: 'idle'},
   VoiceConnectionDisconnectReason: {WebSocketClose: 'websocket-close'},
@@ -868,5 +870,20 @@ describe('playback position', () => {
     Object.assign(player, {positionInSeconds: 40, playbackStartPosition: 30, audioResource: {playbackDuration: 4500}});
 
     expect(player.getPlaybackPosition()).toBe(34.5);
+  });
+});
+
+describe('play history recording', () => {
+  it('records each queue entry once, even when it restarts', async () => {
+    const {recordPlay} = await import('../src/services/play-history.js');
+    const player = new Player({} as never, GUILD_ID);
+    const record = (player as unknown as {recordHistory: (song: QueuedSong, version: number) => void}).recordHistory.bind(player);
+    const song = makeSong('Song') as QueuedSong;
+
+    record(song, 1);
+    record(song, 1);
+    record(song, 2);
+
+    expect(recordPlay).toHaveBeenCalledTimes(2);
   });
 });

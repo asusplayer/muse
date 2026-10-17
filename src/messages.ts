@@ -145,6 +145,11 @@ const messages = {
     onlyOwnFavorites: 'you can only remove your own favorites',
     removed: '👍 favorite removed',
   },
+  history: {
+    empty: 'nothing has been played yet',
+    notFound: 'that song is no longer in the history, pick one from the list',
+    title: 'Recently played',
+  },
   queueAdd: {
     noSongsFound: 'no songs found',
     resumingPlayback: 'resuming playback',

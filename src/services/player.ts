@@ -32,6 +32,7 @@ import {
 } from './player-types.js';
 import {destroyVoiceConnection, recoverVoiceConnection} from './voice-connection-recovery.js';
 import {SkipVotes} from './vote-skip.js';
+import {recordPlay} from './play-history.js';
 import type {Lyrics} from './lyrics.js';
 import debug from '../utils/debug.js';
 import {getGuildSettings} from '../utils/get-guild-settings.js';
@@ -119,6 +120,7 @@ export default class {
   private nowPlaying: QueuedSong | null = null;
   private currentQueueEntryVersion = 0;
   private nowPlayingQueueEntryVersion: number | null = null;
+  private lastRecordedQueueEntryVersion: number | null = null;
   private readonly playbackAttempts: PlaybackAttemptTracker<QueuedSong, VoiceConnection>;
   private readonly programmaticallyStoppedAudioPlayers = new WeakSet<AudioPlayer>();
   private playPositionInterval: NodeJS.Timeout | undefined;
@@ -832,6 +834,7 @@ export default class {
       this.status = STATUS.PLAYING;
       this.nowPlaying = currentSong;
       this.nowPlayingQueueEntryVersion = currentQueueEntryVersion;
+      this.recordHistory(currentSong, currentQueueEntryVersion);
       await this.setupNowPlayingMessage(currentSong);
       this.startTrackingPosition(0);
     } catch (error: unknown) {
@@ -1215,6 +1218,16 @@ export default class {
     } catch (error: unknown) {
       debug(error);
     }
+  }
+
+  // Restarting the same entry (reconnects, retries) must not add it twice.
+  private recordHistory(song: QueuedSong, queueEntryVersion: number): void {
+    if (this.lastRecordedQueueEntryVersion === queueEntryVersion) {
+      return;
+    }
+
+    this.lastRecordedQueueEntryVersion = queueEntryVersion;
+    recordPlay(this.guildId, song).catch(debug);
   }
 
   private async loadLyrics(song: QueuedSong): Promise<void> {

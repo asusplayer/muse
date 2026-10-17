@@ -35,6 +35,7 @@ import Clear from '../src/commands/clear.js';
 import Config from '../src/commands/config.js';
 import Disconnect from '../src/commands/disconnect.js';
 import Favorites from '../src/commands/favorites.js';
+import History from '../src/commands/history.js';
 import ForwardSeek from '../src/commands/fseek.js';
 import LoopQueue from '../src/commands/loop-queue.js';
 import Loop from '../src/commands/loop.js';
@@ -126,6 +127,7 @@ const COMMAND_NAMES = [
   'disconnect',
   'favorites',
   'fseek',
+  'history',
   'loop-queue',
   'loop',
   'lyrics',
@@ -156,6 +158,7 @@ const makeCommands = () => {
     new Disconnect(playerManager),
     new Favorites(addQueryToQueue),
     new ForwardSeek(playerManager),
+    new History(addQueryToQueue),
     new LoopQueue(playerManager),
     new Loop(playerManager),
     new Lyrics(playerManager, {} as never),
@@ -202,12 +205,12 @@ beforeEach(() => {
 });
 
 describe('command metadata', () => {
-  it('publishes the exact 23 unique command names', () => {
+  it('publishes the exact 24 unique command names', () => {
     const serialized = makeCommands().map(command => command.slashCommand.toJSON());
     const names = serialized.map(command => command.name);
 
-    expect(serialized).toHaveLength(23);
-    expect(new Set(names)).toHaveLength(23);
+    expect(serialized).toHaveLength(24);
+    expect(new Set(names)).toHaveLength(24);
     expect([...names].sort()).toEqual([...COMMAND_NAMES].sort());
   });
 

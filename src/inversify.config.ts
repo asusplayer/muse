@@ -21,6 +21,7 @@ import Clear from './commands/clear.js';
 import Config from './commands/config.js';
 import Disconnect from './commands/disconnect.js';
 import Favorites from './commands/favorites.js';
+import History from './commands/history.js';
 import ForwardSeek from './commands/fseek.js';
 import LoopQueue from './commands/loop-queue.js';
 import LyricsCommand from './commands/lyrics.js';
@@ -82,6 +83,7 @@ if (config.SPOTIFY_CLIENT_ID !== '' && config.SPOTIFY_CLIENT_SECRET !== '') {
   Disconnect,
   Favorites,
   ForwardSeek,
+  History,
   LoopQueue,
   Loop,
   LyricsCommand,

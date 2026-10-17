@@ -2,6 +2,8 @@ import {PassThrough} from 'node:stream';
 import {createAudioResource, StreamType, type AudioPlayer, type AudioResource} from '@discordjs/voice';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
+vi.mock('../src/services/play-history.js', () => ({recordPlay: vi.fn().mockResolvedValue(undefined)}));
+
 vi.mock('../src/services/file-cache.js', () => ({default: class {}}));
 vi.mock('../src/utils/get-guild-settings.js', () => ({
   getGuildSettings: vi.fn(async () => ({secondsToWaitAfterQueueEmpties: 0, autoAnnounceNextSong: false})),

@@ -54,3 +54,20 @@ model FavoriteQuery {
 
   @@unique([guildId, name])
 }
+
+model PlayHistory {
+  id           Int      @id @default(autoincrement())
+  guildId      String
+  title        String
+  artist       String
+  url          String
+  source       Int
+  length       Int
+  offset       Int
+  thumbnailUrl String?
+  isLive       Boolean
+  requestedBy  String
+  playedAt     DateTime @default(now())
+
+  @@index([guildId, id])
+}
