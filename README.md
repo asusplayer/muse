@@ -33,9 +33,13 @@ Everything below is added by this fork. Each setting has a `/config` subcommand,
 - ⏱️ **Live now-playing message** that updates every second and shows the next three songs in the queue.
 - 🎤 **Synced lyrics** from [LRCLIB](https://lrclib.net): the previous, current and next line run along in the now-playing message (`/config set-now-playing-lyrics`, on by default). `/lyrics` shows the full text privately.
 - 🎵 **YouTube Music first**: free-text searches pick the YouTube Music song (the plain studio version) instead of the music video (`/config set-prefer-audio`, on by default). Falls back to the regular YouTube search when nothing matches.
+- 🏷️ **Clearer titles**: songs from YouTube Music "Topic" channels show the artist in the title, and `/queue` shows who queued each song (📻 for autoplay).
+- 🖱️ **Play from any message**: right-click a message → *Apps* → *Play* queues its link, the song linked in one of Muse's own messages, or its text as a search.
+- 📋 **Queue menus**: `/queue` has menus to play a song next or remove it, no position numbers needed.
 - 🗳️ **Vote skip**: skipping needs votes from a share of the listeners (`/config set-vote-skip`, `/config set-vote-skip-percent`, off by default, 50 %). The requester and members with *Manage Server* always skip right away.
+- 🎧 **DJ role**: `/config set-dj-role` limits stop, pause, volume, seek, loop, shuffle, removing and moving songs, the player buttons and the queue menus to one role (and members with *Manage Server*). Everyone else can still queue songs, and their skips count as votes. Run it without a role to turn it off.
 - 📜 **Play history**: `/history list` shows the last 200 songs of the server, `/history play` queues one of them again.
-- 💾 **Saved playlists**: `/playlist save` stores the current song and queue under a name, `/playlist load|list|remove` work with them. Only the creator or the server owner can overwrite or remove a playlist.
+- 💾 **Saved playlists**: `/playlist save` stores the current song and queue under a name, `/playlist import` saves a YouTube or Spotify playlist URL without playing it, and `/playlist load|list|remove` work with them. Imports, like `/play`, stop at the server's playlist limit (`/config set-playlist-limit`, 50 by default). Only the creator or the server owner can overwrite or remove a playlist.
 - 📻 **Autoplay**: when the queue runs out, Muse adds five songs from YouTube's Mix for the last song (`/config set-autoplay`, off by default). The 📻 button switches it for the current session.
 
 ## Running
