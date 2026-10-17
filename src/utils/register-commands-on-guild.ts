@@ -6,13 +6,17 @@ interface RegisterCommandsOnGuildOptions {
   rest: REST;
   applicationId: string;
   guildId: string;
-  commands: Array<Command['slashCommand']>;
+  commands: Command[];
 }
+
+export const getCommandBodies = (commands: Command[]) => commands.flatMap(command => (
+  command.contextMenuCommand ? [command.slashCommand.toJSON(), command.contextMenuCommand.toJSON()] : [command.slashCommand.toJSON()]
+));
 
 const registerCommandsOnGuild = async ({rest, applicationId, guildId, commands}: RegisterCommandsOnGuildOptions) => {
   await rest.put(
     Routes.applicationGuildCommands(applicationId, guildId),
-    {body: commands.map(command => command.toJSON())},
+    {body: getCommandBodies(commands)},
   );
 };
 

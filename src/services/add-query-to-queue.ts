@@ -1,4 +1,4 @@
-import {ChatInputCommandInteraction, GuildMember} from 'discord.js';
+import {ChatInputCommandInteraction, GuildMember, MessageContextMenuCommandInteraction} from 'discord.js';
 import type {Setting} from '@prisma/client';
 import {inject, injectable} from 'inversify';
 import shuffle from 'array-shuffle';
@@ -54,7 +54,7 @@ export default class AddQueryToQueue {
     shuffleAdditions: boolean;
     shouldSplitChapters: boolean;
     skipCurrentTrack: boolean;
-    interaction: ChatInputCommandInteraction;
+    interaction: ChatInputCommandInteraction | MessageContextMenuCommandInteraction;
   }): Promise<void> {
     return this.addSongsToQueue({
       ...options,
@@ -74,7 +74,7 @@ export default class AddQueryToQueue {
     addToFrontOfQueue: boolean;
     shuffleAdditions: boolean;
     skipCurrentTrack: boolean;
-    interaction: ChatInputCommandInteraction;
+    interaction: ChatInputCommandInteraction | MessageContextMenuCommandInteraction;
   }): Promise<void> {
     const guildId = interaction.guild!.id;
     const player = this.playerManager.get(guildId);

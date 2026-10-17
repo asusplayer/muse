@@ -1,4 +1,4 @@
-import {AutocompleteInteraction, ChatInputCommandInteraction} from 'discord.js';
+import {ApplicationCommandType, AutocompleteInteraction, ChatInputCommandInteraction, ContextMenuCommandBuilder, Message, MessageContextMenuCommandInteraction} from 'discord.js';
 import {URL} from 'url';
 import {SlashCommandBuilder, SlashCommandSubcommandsOnlyBuilder} from '@discordjs/builders';
 import {inject, injectable, optional} from 'inversify';
@@ -11,10 +11,21 @@ import KeyValueCacheProvider from '../services/key-value-cache.js';
 import {ONE_HOUR_IN_SECONDS} from '../utils/constants.js';
 import AddQueryToQueue from '../services/add-query-to-queue.js';
 import {truncate} from '../utils/string.js';
+import messages from '../messages.js';
+
+// A link in the text wins, then a link preview (e.g. a shared Spotify card), then the text as a search query.
+export const getQueryFromMessage = ({content, embeds}: Pick<Message, 'content' | 'embeds'>): string | undefined => (
+  /https?:\/\/\S+/.exec(content)?.[0] ?? embeds.find(embed => embed.url)?.url ?? (content.trim() || undefined)
+);
 
 @injectable()
 export default class implements Command {
   public readonly slashCommand: Partial<SlashCommandBuilder | SlashCommandSubcommandsOnlyBuilder> & Pick<SlashCommandBuilder, 'toJSON'>;
+
+  public readonly contextMenuCommand = new ContextMenuCommandBuilder()
+    .setName('Play')
+    .setType(ApplicationCommandType.Message)
+    .setDMPermission(false);
 
   public requiresVC = true;
 
@@ -63,6 +74,22 @@ export default class implements Command {
       shuffleAdditions: interaction.options.getBoolean('shuffle') ?? false,
       shouldSplitChapters: interaction.options.getBoolean('split') ?? false,
       skipCurrentTrack: interaction.options.getBoolean('skip') ?? false,
+    });
+  }
+
+  public async handleMessageContextMenu(interaction: MessageContextMenuCommandInteraction): Promise<void> {
+    const query = getQueryFromMessage(interaction.targetMessage);
+    if (!query) {
+      throw new Error(messages.play.nothingInMessage);
+    }
+
+    await this.addQueryToQueue.addToQueue({
+      interaction,
+      query,
+      addToFrontOfQueue: false,
+      shuffleAdditions: false,
+      shouldSplitChapters: false,
+      skipCurrentTrack: false,
     });
   }
 

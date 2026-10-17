@@ -92,6 +92,9 @@ const messages = {
     autoplayRequester: '📻 Autoplay',
     moreInQueue: (count: number) => `…and ${count} more`,
   },
+  play: {
+    nothingInMessage: 'that message has no link or text to play',
+  },
   lyrics: {
     notFound: 'no lyrics found for this song',
     title: (title: string) => `Lyrics: ${title}`,

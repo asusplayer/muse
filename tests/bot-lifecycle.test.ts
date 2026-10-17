@@ -120,6 +120,8 @@ type Handler = (...args: never[]) => unknown;
 
 interface StructuralCommand {
   execute?: ReturnType<typeof vi.fn>;
+  contextMenuCommand?: {name: string; toJSON: ReturnType<typeof vi.fn>};
+  handleMessageContextMenu?: ReturnType<typeof vi.fn>;
   requiresVC?: boolean | ((interaction: StructuralInteraction) => boolean);
   slashCommand: {
     name: string;
@@ -138,6 +140,7 @@ interface StructuralInteraction {
   isButton: () => boolean;
   isChatInputCommand: () => boolean;
   isCommand: () => boolean;
+  isMessageContextMenuCommand: () => boolean;
   member?: {user: {id: string}};
   options: {getSubcommand: () => string};
   replied: boolean;
@@ -202,6 +205,7 @@ const makeInteraction = (commandName: string, overrides: Partial<StructuralInter
   isButton: () => false,
   isChatInputCommand: () => true,
   isCommand: () => true,
+  isMessageContextMenuCommand: () => false,
   member: {user: {id: 'member-id'}},
   options: {getSubcommand: () => 'list'},
   replied: false,
@@ -394,6 +398,28 @@ describe('interaction boundaries', () => {
       embeds: [buildErrorEmbed('🚫 ope: gotta be in a voice channel')],
       ephemeral: true,
     });
+    expect(command.execute).not.toHaveBeenCalled();
+  });
+
+  it('routes message context menu commands by their menu name behind the same voice guard', async () => {
+    const command = makeCommand('play', {
+      requiresVC: true,
+      contextMenuCommand: {name: 'Play', toJSON: vi.fn(() => ({name: 'Play', type: 3}))},
+      handleMessageContextMenu: vi.fn().mockResolvedValue(undefined),
+    });
+    const {handlers} = await registerBot(true, [command]);
+    const members = new Collection([['member-id', {id: 'member-id'}]]);
+    const guild = {channels: {cache: new Collection([['voice-id', {members, type: ChannelType.GuildVoice}]])}};
+    const menu = {isChatInputCommand: () => false, isMessageContextMenuCommand: () => true};
+
+    const outside = makeInteraction('Play', menu);
+    await invoke(handlers, 'interactionCreate', outside);
+    expect(outside.reply).toHaveBeenCalledWith(expect.objectContaining({ephemeral: true}));
+
+    const inside = makeInteraction('Play', {...menu, guild});
+    await invoke(handlers, 'interactionCreate', inside);
+    expect(command.handleMessageContextMenu).toHaveBeenCalledOnce();
+    expect(command.handleMessageContextMenu).toHaveBeenCalledWith(inside);
     expect(command.execute).not.toHaveBeenCalled();
   });
 

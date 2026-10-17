@@ -37,7 +37,7 @@ export default async (guild: Guild): Promise<void> => {
       rest,
       applicationId: client.user!.id,
       guildId: guild.id,
-      commands: container.getAll<Command>(TYPES.Command).map(command => command.slashCommand),
+      commands: container.getAll<Command>(TYPES.Command),
     });
   }
 

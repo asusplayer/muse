@@ -15,7 +15,7 @@ import Config from './services/config.js';
 import {generateDependencyReport} from '@discordjs/voice';
 import {REST} from '@discordjs/rest';
 import {Routes} from 'discord-api-types/v10';
-import registerCommandsOnGuild from './utils/register-commands-on-guild.js';
+import registerCommandsOnGuild, {getCommandBodies} from './utils/register-commands-on-guild.js';
 
 @injectable()
 export default class {
@@ -24,6 +24,7 @@ export default class {
   private readonly shouldRegisterCommandsOnBot: boolean;
   private readonly commandsByName!: Collection<string, Command>;
   private readonly commandsByButtonId!: Collection<string, Command>;
+  private readonly commandsByContextMenuName!: Collection<string, Command>;
 
   constructor(@inject(TYPES.Client) client: Client, @inject(TYPES.Config) config: Config) {
     this.client = client;
@@ -31,6 +32,7 @@ export default class {
     this.shouldRegisterCommandsOnBot = config.REGISTER_COMMANDS_ON_BOT;
     this.commandsByName = new Collection();
     this.commandsByButtonId = new Collection();
+    this.commandsByContextMenuName = new Collection();
   }
 
   public async register(): Promise<void> {
@@ -48,6 +50,10 @@ export default class {
         this.commandsByName.set(command.slashCommand.name, command);
       }
 
+      if (command.contextMenuCommand) {
+        this.commandsByContextMenuName.set(command.contextMenuCommand.name, command);
+      }
+
       if (command.handledButtonIds) {
         for (const buttonId of command.handledButtonIds) {
           this.commandsByButtonId.set(buttonId, command);
@@ -60,9 +66,11 @@ export default class {
     this.client.on('interactionCreate', async interaction => {
       try {
         if (interaction.isCommand()) {
-          const command = this.commandsByName.get(interaction.commandName);
+          const command = interaction.isMessageContextMenuCommand()
+            ? this.commandsByContextMenuName.get(interaction.commandName)
+            : this.commandsByName.get(interaction.commandName);
 
-          if (!command || !interaction.isChatInputCommand()) {
+          if (!command || !(interaction.isChatInputCommand() || interaction.isMessageContextMenuCommand())) {
             return;
           }
 
@@ -71,13 +79,17 @@ export default class {
             return;
           }
 
-          const requiresVC = command.requiresVC instanceof Function ? command.requiresVC(interaction) : command.requiresVC;
+          const requiresVC = command.requiresVC instanceof Function
+            ? interaction.isChatInputCommand() && command.requiresVC(interaction)
+            : command.requiresVC;
           if (requiresVC && interaction.member && !isUserInVoice(interaction.guild, interaction.member.user as User)) {
             await interaction.reply({embeds: [buildErrorEmbed(errorText(messages.errors.notInVoiceChannel))], ephemeral: true});
             return;
           }
 
-          if (command.execute) {
+          if (interaction.isMessageContextMenuCommand()) {
+            await command.handleMessageContextMenu?.(interaction);
+          } else if (command.execute) {
             await command.execute(interaction);
           }
         } else if (interaction.isButton()) {
@@ -132,7 +144,7 @@ export default class {
         spinner.text = '📡 updating commands on bot...';
         await rest.put(
           Routes.applicationCommands(this.client.user!.id),
-          {body: this.commandsByName.map(command => command.slashCommand.toJSON())},
+          {body: getCommandBodies([...this.commandsByName.values()])},
         );
       } else {
         spinner.text = '📡 updating commands in all guilds...';
@@ -143,7 +155,7 @@ export default class {
               rest,
               guildId: guild.id,
               applicationId: this.client.user!.id,
-              commands: this.commandsByName.map(c => c.slashCommand),
+              commands: [...this.commandsByName.values()],
             });
           }),
           // Remove commands registered on bot (if they exist)
