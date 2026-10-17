@@ -10,6 +10,7 @@ import getYouTubeAndSpotifySuggestionsFor, {SpotifySuggestionsUnavailableError} 
 import KeyValueCacheProvider from '../services/key-value-cache.js';
 import {ONE_HOUR_IN_SECONDS} from '../utils/constants.js';
 import AddQueryToQueue from '../services/add-query-to-queue.js';
+import {truncate} from '../utils/string.js';
 
 @injectable()
 export default class implements Command {
@@ -104,6 +105,7 @@ export default class implements Command {
       }
     }
 
-    await interaction.respond(suggestions);
+    // Discord rejects the whole response if any choice name is longer than 100 characters.
+    await interaction.respond(suggestions.map(suggestion => ({...suggestion, name: truncate(suggestion.name, 100)})));
   }
 }
