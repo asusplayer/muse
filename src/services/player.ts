@@ -84,7 +84,15 @@ export class FfmpegStartupError extends Error {
   }
 }
 
-const isForbiddenMediaUrlError = (error: unknown) => error instanceof FfmpegStartupError && error.message.includes('403 Forbidden');
+const MAX_FORBIDDEN_RETRIES = 2;
+const FORBIDDEN_RETRY_DELAY_MS = 1_000;
+
+// Returns the retry number to attempt after a 403 on a freshly extracted (not cached) media URL, or null to give up.
+const nextForbiddenRetry = (error: unknown, fromCache: boolean, retries = 0) => (
+  !fromCache && retries < MAX_FORBIDDEN_RETRIES && error instanceof FfmpegStartupError && error.message.includes('403 Forbidden')
+    ? retries + 1
+    : null
+);
 
 const getFfmpegStartupError = (error: unknown) => {
   const detail = error instanceof Error ? error.message : String(error);
@@ -909,7 +917,7 @@ export default class {
     return hasha(url);
   }
 
-  private async getStream(song: QueuedSong, options: {seek?: number; to?: number; retriedForbidden?: boolean} = {}): Promise<Readable> {
+  private async getStream(song: QueuedSong, options: {seek?: number; to?: number; forbiddenRetries?: number} = {}): Promise<Readable> {
     if (this.status === STATUS.PLAYING) {
       this.stopAudioPlayer();
     } else if (this.status === STATUS.PAUSED) {
@@ -979,12 +987,14 @@ export default class {
         return this.getStream(song, options);
       }
 
-      // YouTube sometimes rejects a freshly extracted media URL; a new extraction usually works.
-      if (!cachedEntry
-        && !options.retriedForbidden
-        && isForbiddenMediaUrlError(error)) {
-        debug(`Media URL was forbidden for ${song.url}, extracting a fresh one`);
-        return this.getStream(song, {...options, retriedForbidden: true});
+      // YouTube sometimes rejects a freshly extracted media URL; a new extraction a moment later usually works.
+      const retry = nextForbiddenRetry(error, Boolean(cachedEntry), options.forbiddenRetries);
+      if (retry !== null) {
+        console.warn(`Media URL for ${song.url} was forbidden (403), extracting a fresh one (retry ${retry}/${MAX_FORBIDDEN_RETRIES})`);
+        await new Promise(resolve => {
+          setTimeout(resolve, FORBIDDEN_RETRY_DELAY_MS * retry);
+        });
+        return this.getStream(song, {...options, forbiddenRetries: retry});
       }
 
       throw error;

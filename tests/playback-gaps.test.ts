@@ -844,20 +844,38 @@ describe('forbidden media URL retry', () => {
     return {createReadStream, player};
   };
 
-  it('extracts a fresh media URL once after a 403', async () => {
-    const {createReadStream, player} = makeUncachedPlayer();
-    const stream = Readable.from([]);
-    createReadStream.mockRejectedValueOnce(forbidden()).mockResolvedValueOnce(stream);
-
-    await expect(getStreamOf(player)(makeQueuedSong('Song'))).resolves.toBe(stream);
-    expect(dependencyMocks.execa).toHaveBeenCalledTimes(2);
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
   });
 
-  it('gives up after the second 403', async () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  const settle = async <T>(promise: Promise<T>) => {
+    const settled = promise.then(value => ({value}), (error: unknown) => ({error}));
+    await vi.runAllTimersAsync();
+    return settled;
+  };
+
+  it('extracts a fresh media URL after a 403 and logs which video failed', async () => {
+    const {createReadStream, player} = makeUncachedPlayer();
+    const stream = Readable.from([]);
+    createReadStream.mockRejectedValueOnce(forbidden()).mockRejectedValueOnce(forbidden()).mockResolvedValueOnce(stream);
+
+    expect(await settle(getStreamOf(player)(makeQueuedSong('Song')))).toEqual({value: stream});
+    expect(dependencyMocks.execa).toHaveBeenCalledTimes(3);
+    expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('retry 2/2'));
+  });
+
+  it('gives up after the third 403', async () => {
     const {createReadStream, player} = makeUncachedPlayer();
     createReadStream.mockRejectedValue(forbidden());
 
-    await expect(getStreamOf(player)(makeQueuedSong('Song'))).rejects.toBeInstanceOf(FfmpegStartupError);
-    expect(createReadStream).toHaveBeenCalledTimes(2);
+    const {error} = await settle(getStreamOf(player)(makeQueuedSong('Song'))) as {error: unknown};
+    expect(error).toBeInstanceOf(FfmpegStartupError);
+    expect(createReadStream).toHaveBeenCalledTimes(3);
   });
 });
