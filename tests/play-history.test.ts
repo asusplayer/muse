@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('../src/utils/db.js', () => ({prisma: {playHistory: mocks.playHistory}}));
 vi.mock('../src/services/player.js', () => ({default: class {}, STATUS: {}, MediaSource: {Youtube: 0}}));
+vi.mock('../src/utils/get-guild-settings.js', () => ({getGuildSettings: vi.fn()}));
 
 import History from '../src/commands/history.js';
 import {MAX_HISTORY_PER_GUILD, recordPlay} from '../src/services/play-history.js';

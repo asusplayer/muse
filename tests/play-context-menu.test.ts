@@ -1,5 +1,7 @@
 import 'reflect-metadata';
-import {describe, expect, it} from 'vitest';
+import {describe, expect, it, vi} from 'vitest';
+
+vi.mock('../src/utils/get-guild-settings.js', () => ({getGuildSettings: vi.fn()}));
 import Play, {getQueryFromMessage} from '../src/commands/play.js';
 import {getCommandBodies} from '../src/utils/register-commands-on-guild.js';
 
