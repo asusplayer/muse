@@ -25,6 +25,7 @@ export default class {
   private readonly commandsByName!: Collection<string, Command>;
   private readonly commandsByButtonId!: Collection<string, Command>;
   private readonly commandsByContextMenuName!: Collection<string, Command>;
+  private readonly commandsBySelectMenuId!: Collection<string, Command>;
 
   constructor(@inject(TYPES.Client) client: Client, @inject(TYPES.Config) config: Config) {
     this.client = client;
@@ -33,6 +34,7 @@ export default class {
     this.commandsByName = new Collection();
     this.commandsByButtonId = new Collection();
     this.commandsByContextMenuName = new Collection();
+    this.commandsBySelectMenuId = new Collection();
   }
 
   public async register(): Promise<void> {
@@ -58,6 +60,10 @@ export default class {
         for (const buttonId of command.handledButtonIds) {
           this.commandsByButtonId.set(buttonId, command);
         }
+      }
+
+      for (const menuId of command.handledSelectMenuIds ?? []) {
+        this.commandsBySelectMenuId.set(menuId, command);
       }
     }
 
@@ -102,6 +108,8 @@ export default class {
           if (command.handleButtonInteraction) {
             await command.handleButtonInteraction(interaction);
           }
+        } else if (interaction.isStringSelectMenu()) {
+          await this.commandsBySelectMenuId.get(interaction.customId)?.handleSelectMenuInteraction?.(interaction);
         } else if (interaction.isAutocomplete()) {
           const command = this.commandsByName.get(interaction.commandName);
 
@@ -118,15 +126,15 @@ export default class {
         debug(sanitizedError);
         const interactionName = interaction.isCommand() || interaction.isAutocomplete()
           ? `/${interaction.commandName}`
-          : interaction.isButton()
-            ? `button:${interaction.customId}`
+          : interaction.isButton() || interaction.isStringSelectMenu()
+            ? `component:${interaction.customId}`
             : interaction.type.toString();
         console.error(`Discord interaction failed (${interactionName}, guild=${interaction.guildId ?? 'dm'}, channel=${interaction.channelId ?? 'unknown'}, user=${interaction.user.id}): ${sanitizedError}`);
         // This can fail if the message was deleted, and we don't want to crash the whole bot
         try {
           if ((interaction.isCommand() || interaction.isButton()) && (interaction.replied || interaction.deferred)) {
             await interaction.editReply({embeds: [buildErrorEmbed(errorText(error as Error))]});
-          } else if (interaction.isCommand() || interaction.isButton()) {
+          } else if (interaction.isCommand() || interaction.isButton() || interaction.isStringSelectMenu()) {
             await interaction.reply({embeds: [buildErrorEmbed(errorText(error as Error))], ephemeral: true});
           }
         } catch {}

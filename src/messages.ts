@@ -106,6 +106,9 @@ const messages = {
     noPlayingSong: 'No playing song found',
     empty: 'queue is empty',
     tooBig: 'the queue isn\'t that big',
+    playNextPlaceholder: '⏫ Play a song next',
+    removePlaceholder: '🗑️ Remove a song',
+    changed: 'the queue changed in the meantime, pick the song again',
   },
   config: {
     invalidLimit: 'invalid limit',
