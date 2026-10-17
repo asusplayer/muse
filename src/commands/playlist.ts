@@ -6,6 +6,8 @@ import type {SavedPlaylist} from '@prisma/client';
 import Command from './index.js';
 import AddQueryToQueue from '../services/add-query-to-queue.js';
 import PlayerManager from '../managers/player.js';
+import GetSongs from '../services/get-songs.js';
+import {getGuildSettings} from '../utils/get-guild-settings.js';
 import type {SongMetadata} from '../services/player.js';
 import {TYPES} from '../types.js';
 import {prisma} from '../utils/db.js';
@@ -62,6 +64,21 @@ export default class implements Command {
         .setName('overwrite')
         .setDescription('replace an existing playlist with this name')))
     .addSubcommand(subcommand => subcommand
+      .setName('import')
+      .setDescription('save a YouTube or Spotify playlist as a server playlist without playing it')
+      .addStringOption(option => option
+        .setName('name')
+        .setDescription('name of the playlist')
+        .setMaxLength(MAX_NAME_LENGTH)
+        .setRequired(true))
+      .addStringOption(option => option
+        .setName('url')
+        .setDescription('YouTube or Spotify playlist URL')
+        .setRequired(true))
+      .addBooleanOption(option => option
+        .setName('overwrite')
+        .setDescription('replace an existing playlist with this name')))
+    .addSubcommand(subcommand => subcommand
       .setName('load')
       .setDescription('add a saved playlist to the queue')
       .addStringOption(option => option
@@ -90,6 +107,7 @@ export default class implements Command {
   constructor(
     @inject(TYPES.Services.AddQueryToQueue) private readonly addQueryToQueue: AddQueryToQueue,
     @inject(TYPES.Managers.Player) private readonly playerManager: PlayerManager,
+    @inject(TYPES.Services.GetSongs) private readonly getSongs: GetSongs,
   ) {
   }
 
@@ -99,6 +117,9 @@ export default class implements Command {
     switch (interaction.options.getSubcommand()) {
       case 'save':
         await this.save(interaction);
+        break;
+      case 'import':
+        await this.import(interaction);
         break;
       case 'load':
         await this.load(interaction);
@@ -136,15 +157,36 @@ export default class implements Command {
   }
 
   private async save(interaction: ChatInputCommandInteraction) {
-    const name = interaction.options.getString('name')!.trim();
     const player = this.playerManager.get(interaction.guild!.id);
     const current = player.getCurrent();
-    const songs = [...(current ? [current] : []), ...player.getQueue()].map(toStoredSong);
+    const songs = [...(current ? [current] : []), ...player.getQueue()];
 
     if (songs.length === 0) {
       throw new Error(messages.playlist.nothingToSave);
     }
 
+    const write = await this.prepareWrite(interaction);
+    await interaction.reply({embeds: [buildMessageEmbed(await write(songs))]});
+  }
+
+  private async import(interaction: ChatInputCommandInteraction) {
+    // Check the name before the slow lookup, so a taken name fails right away.
+    const write = await this.prepareWrite(interaction);
+    await interaction.deferReply();
+
+    const {playlistLimit, preferAudio} = await getGuildSettings(interaction.guild!.id);
+    const [songs, extraMsg] = await this.getSongs.getSongs(interaction.options.getString('url')!.trim(), playlistLimit, false, preferAudio);
+    if (songs.length === 0) {
+      throw new Error(messages.queueAdd.noSongsFound);
+    }
+
+    const saved = await write(songs);
+    await interaction.editReply({embeds: [buildMessageEmbed(extraMsg ? `${saved} (${extraMsg})` : saved)]});
+  }
+
+  // Checks the name and rights up front and returns the write, which reports what was saved.
+  private async prepareWrite(interaction: ChatInputCommandInteraction) {
+    const name = interaction.options.getString('name')!.trim();
     const existing = await this.find(interaction);
     if (existing) {
       if (!interaction.options.getBoolean('overwrite')) {
@@ -154,15 +196,20 @@ export default class implements Command {
       if (!this.canChange(interaction.member!.user.id, interaction.guild!.ownerId, existing)) {
         throw new Error(messages.playlist.onlyOwnPlaylists);
       }
-
-      await prisma.savedPlaylist.update({where: {id: existing.id}, data: {songs: JSON.stringify(songs)}});
-    } else {
-      await prisma.savedPlaylist.create({
-        data: {guildId: interaction.guild!.id, name, authorId: interaction.member!.user.id, songs: JSON.stringify(songs)},
-      });
     }
 
-    await interaction.reply({embeds: [buildMessageEmbed(messages.playlist.saved(name, songs.length))]});
+    return async (songs: SongMetadata[]) => {
+      const json = JSON.stringify(songs.map(toStoredSong));
+      if (existing) {
+        await prisma.savedPlaylist.update({where: {id: existing.id}, data: {songs: json}});
+      } else {
+        await prisma.savedPlaylist.create({
+          data: {guildId: interaction.guild!.id, name, authorId: interaction.member!.user.id, songs: json},
+        });
+      }
+
+      return messages.playlist.saved(name, songs.length);
+    };
   }
 
   private async load(interaction: ChatInputCommandInteraction) {
