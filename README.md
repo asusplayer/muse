@@ -3,7 +3,7 @@
 </p>
 
 > [!IMPORTANT]
-> Muse is now community-maintained under the [`museofficial`](https://github.com/museofficial) organization. For Docker, use `ghcr.io/museofficial/muse` as the canonical image source. Docker Hub tags may be published as compatibility mirrors, but GHCR is the supported target for new deployments.
+> This is a fork of [`museofficial/muse`](https://github.com/museofficial/muse) that turns the now-playing message into a full music player and adds a few more features (see [Fork features](#fork-features)). Upstream changes are merged in regularly. The Docker image for this fork is `ghcr.io/asusplayer/muse`, rebuilt on every push to `master`.
 
 ------
 
@@ -17,13 +17,26 @@ Muse is a **highly-opinionated midwestern self-hosted** Discord music bot **that
 - ☁️ SoundCloud tracks, share links, and playlists
 - ⏩ Seeking within a song/video
 - 💾 Local caching for better performance
-- 📋 No vote-to-skip - this is anarchy, not a democracy
+- 📋 No vote-to-skip by default - this is anarchy, not a democracy (but see vote skip below)
 - ↔️ Autoconverts playlists / artists / albums / songs from Spotify
 - ⭐ Users can save favorite queries for reuse
 - 1️⃣ Muse instance supports multiple guilds
 - 🔊 Configurable volume controls, including optional ducking when people speak
 - ✍️ Written in TypeScript, easily extendable
 - ❤️ Loyal Packers fan
+
+### Fork features
+
+Everything below is added by this fork. Each setting has a `/config` subcommand, and `/config get` shows the current values.
+
+- 🎛️ **Player controls** under the now-playing message: previous, play/pause, skip, stop, loop (off → song → queue), shuffle, volume ±10 % and autoplay. Only members in the bot's voice channel can use them.
+- ⏱️ **Live now-playing message** that updates every second and shows the next three songs in the queue.
+- 🎤 **Synced lyrics** from [LRCLIB](https://lrclib.net): the previous, current and next line run along in the now-playing message (`/config set-now-playing-lyrics`, on by default). `/lyrics` shows the full text privately.
+- 🎵 **YouTube Music first**: free-text searches pick the YouTube Music song (the plain studio version) instead of the music video (`/config set-prefer-audio`, on by default). Falls back to the regular YouTube search when nothing matches.
+- 🗳️ **Vote skip**: skipping needs votes from a share of the listeners (`/config set-vote-skip`, `/config set-vote-skip-percent`, off by default, 50 %). The requester and members with *Manage Server* always skip right away.
+- 📜 **Play history**: `/history list` shows the last 200 songs of the server, `/history play` queues one of them again.
+- 💾 **Saved playlists**: `/playlist save` stores the current song and queue under a name, `/playlist load|list|remove` work with them. Only the creator or the server owner can overwrite or remove a playlist.
+- 📻 **Autoplay**: when the queue runs out, Muse adds five songs from YouTube's Mix for the last song (`/config set-autoplay`, off by default). The 📻 button switches it for the current session.
 
 ## Running
 
@@ -39,24 +52,19 @@ A 64-bit OS is required to run Muse.
 
 ### Versioning
 
-The `master` branch acts as the developing / bleeding edge branch and is not guaranteed to be stable.
-
-When running a production instance, I recommend that you use the [latest release](https://github.com/museofficial/muse/releases/).
+This fork has no releases of its own. Every push to `master` publishes a new image, so `master` is what runs. To stay on a version you have tested, pin the image to a commit (see the tags below).
 
 
 ### 🐳 Docker
 
-There are a variety of image tags available:
-- `:2`: versions >= 2.0.0
-- `:2.1`: versions >= 2.1.0 and < 2.2.0
-- `:2.1.1`: an exact version specifier
-- `:latest`: whatever the latest version is
-- `:yt-dlp-latest`: the latest release rebuilt with the newest available `yt-dlp`
+The fork's image `ghcr.io/asusplayer/muse` has these tags:
+- `:latest`: the current `master`
+- `:sha-<full commit hash>`: an exact commit
 
 (Replace empty config strings with correct values.)
 
 ```bash
-docker run -it -v "$(pwd)/data":/data -e DISCORD_TOKEN='' -e SPOTIFY_CLIENT_ID='' -e SPOTIFY_CLIENT_SECRET='' -e YOUTUBE_API_KEY='' ghcr.io/museofficial/muse:latest
+docker run -it -v "$(pwd)/data":/data -e DISCORD_TOKEN='' -e SPOTIFY_CLIENT_ID='' -e SPOTIFY_CLIENT_SECRET='' -e YOUTUBE_API_KEY='' ghcr.io/asusplayer/muse:latest
 ```
 
 This starts Muse and creates a data directory in your current directory.
@@ -68,7 +76,7 @@ You can also store your tokens in an environment file and make it available to y
 ```yaml
 services:
   muse:
-    image: ghcr.io/museofficial/muse:latest
+    image: ghcr.io/asusplayer/muse:latest
     restart: always
     volumes:
       - ./muse:/data
@@ -91,11 +99,10 @@ If you keep the same `DISCORD_TOKEN`, reuse the same `/data` volume, and point y
 * ffmpeg (4.1 or later)
 * `yt-dlp` on your `PATH` (or set `YT_DLP_PATH` to its full path)
 
-1. `git clone https://github.com/museofficial/muse.git && cd muse`
+1. `git clone https://github.com/asusplayer/muse.git && cd muse`
 2. Copy `.env.example` to `.env` and populate with values
-3. I recommend checking out a tagged release with `git checkout v[latest release]`
-4. `yarn install` (or `npm i`)
-5. `yarn start` (or `npm run start`)
+3. `yarn install` (or `npm i`)
+4. `yarn start` (or `npm run start`)
 
 **Note**: if you're on Windows, you may need to manually set the ffmpeg path. See [#345](https://github.com/museofficial/muse/issues/345) for details.
 
@@ -123,7 +130,7 @@ Age-restricted videos require cookies from an age-verified YouTube account. Expo
 
 Current YouTube extraction also requires a supported JavaScript runtime. The Docker image includes the matching `yt-dlp-ejs` package and uses its bundled Node.js runtime. Direct installs should install `yt-dlp[default]` and provide Node.js 22 or newer.
 
-The `ghcr.io/museofficial/muse:yt-dlp-latest` image is rebuilt on a schedule from the latest Muse release with the newest `yt-dlp` published to PyPI. Versioned refresh tags are also published as `:<muse-version>-yt-dlp-<yt-dlp-version>`.
+Upstream also publishes `ghcr.io/museofficial/muse:yt-dlp-latest`, rebuilt on a schedule with the newest `yt-dlp`. This fork has no such image; set `YT_DLP_AUTO_UPDATE=true` instead to keep `yt-dlp` current.
 
 ### SponsorBlock
 
