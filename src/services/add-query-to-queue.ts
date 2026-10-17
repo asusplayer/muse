@@ -1,4 +1,5 @@
 import {ChatInputCommandInteraction, GuildMember} from 'discord.js';
+import type {Setting} from '@prisma/client';
 import {inject, injectable} from 'inversify';
 import shuffle from 'array-shuffle';
 import {TYPES} from '../types.js';
@@ -44,16 +45,33 @@ export default class AddQueryToQueue {
 
   public async addToQueue({
     query,
-    addToFrontOfQueue,
-    shuffleAdditions,
     shouldSplitChapters,
-    skipCurrentTrack,
-    interaction,
+    ...options
   }: {
     query: string;
     addToFrontOfQueue: boolean;
     shuffleAdditions: boolean;
     shouldSplitChapters: boolean;
+    skipCurrentTrack: boolean;
+    interaction: ChatInputCommandInteraction;
+  }): Promise<void> {
+    return this.addSongsToQueue({
+      ...options,
+      loadSongs: async ({playlistLimit, preferAudio}) => this.getSongs.getSongs(query, playlistLimit, shouldSplitChapters, preferAudio),
+    });
+  }
+
+  // Songs load after the reply is deferred, since resolving them can outlast Discord's 3 second reply window.
+  public async addSongsToQueue({
+    loadSongs,
+    addToFrontOfQueue,
+    shuffleAdditions,
+    skipCurrentTrack,
+    interaction,
+  }: {
+    loadSongs: (settings: Setting) => Promise<[SongMetadata[], string]>;
+    addToFrontOfQueue: boolean;
+    shuffleAdditions: boolean;
     skipCurrentTrack: boolean;
     interaction: ChatInputCommandInteraction;
   }): Promise<void> {
@@ -66,11 +84,9 @@ export default class AddQueryToQueue {
 
     const settings = await getGuildSettings(guildId);
 
-    const {playlistLimit, queueAddResponseEphemeral, preferAudio} = settings;
+    await interaction.deferReply({ephemeral: settings.queueAddResponseEphemeral});
 
-    await interaction.deferReply({ephemeral: queueAddResponseEphemeral});
-
-    let [newSongs, extraMsg] = await this.getSongs.getSongs(query, playlistLimit, shouldSplitChapters, preferAudio);
+    let [newSongs, extraMsg] = await loadSongs(settings);
 
     if (newSongs.length === 0) {
       throw new Error(messages.queueAdd.noSongsFound);
