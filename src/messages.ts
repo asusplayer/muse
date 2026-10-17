@@ -150,6 +150,17 @@ const messages = {
     notFound: 'that song is no longer in the history, pick one from the list',
     title: 'Recently played',
   },
+  playlist: {
+    nothingToSave: 'nothing is playing or queued to save',
+    alreadyExists: 'a playlist with that name already exists, use overwrite to replace it',
+    onlyOwnPlaylists: 'you can only change your own playlists',
+    notFound: 'no playlist with that name exists',
+    noneYet: 'there aren\'t any saved playlists yet',
+    removed: '👍 playlist removed',
+    saved: (name: string, count: number) => `👍 saved **${name}** with ${count} ${count === 1 ? 'song' : 'songs'}`,
+    songCount: (count: number) => `${count} ${count === 1 ? 'song' : 'songs'}`,
+    skippedBroken: (count: number) => `${count} broken ${count === 1 ? 'entry was' : 'entries were'} skipped`,
+  },
   queueAdd: {
     noSongsFound: 'no songs found',
     resumingPlayback: 'resuming playback',

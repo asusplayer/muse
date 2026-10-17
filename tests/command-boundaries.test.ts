@@ -45,6 +45,7 @@ import Next from '../src/commands/next.js';
 import NowPlaying from '../src/commands/now-playing.js';
 import Pause from '../src/commands/pause.js';
 import Play from '../src/commands/play.js';
+import Playlist from '../src/commands/playlist.js';
 import Queue from '../src/commands/queue.js';
 import Remove from '../src/commands/remove.js';
 import Replay from '../src/commands/replay.js';
@@ -136,6 +137,7 @@ const COMMAND_NAMES = [
   'now-playing',
   'pause',
   'play',
+  'playlist',
   'queue',
   'remove',
   'replay',
@@ -167,6 +169,7 @@ const makeCommands = () => {
     new NowPlaying(playerManager),
     new Pause(playerManager),
     new Play(undefined as never, {} as never, addQueryToQueue),
+    new Playlist(addQueryToQueue, playerManager),
     new Queue(playerManager),
     new Remove(playerManager),
     new Replay(playerManager),
@@ -205,12 +208,12 @@ beforeEach(() => {
 });
 
 describe('command metadata', () => {
-  it('publishes the exact 24 unique command names', () => {
+  it('publishes the exact 25 unique command names', () => {
     const serialized = makeCommands().map(command => command.slashCommand.toJSON());
     const names = serialized.map(command => command.name);
 
-    expect(serialized).toHaveLength(24);
-    expect(new Set(names)).toHaveLength(24);
+    expect(serialized).toHaveLength(25);
+    expect(new Set(names)).toHaveLength(25);
     expect([...names].sort()).toEqual([...COMMAND_NAMES].sort());
   });
 

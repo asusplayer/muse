@@ -71,3 +71,16 @@ model PlayHistory {
 
   @@index([guildId, id])
 }
+
+model SavedPlaylist {
+  id        Int      @id @default(autoincrement())
+  guildId   String
+  name      String
+  authorId  String
+  // JSON array of SongMetadata; SQLite has no Json type in Prisma 4.
+  songs     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([guildId, name])
+}
