@@ -334,6 +334,19 @@ describe('/queue', () => {
     expect(() => buildQueueEmbed(player as never, 2, 10)).toThrow('the queue isn\'t that big');
   });
 
+  it('adds the artist to YouTube Music Topic titles and shows who queued each song', () => {
+    const player = {...makeQueuePlayer(2), getQueue: () => [
+      {...makeSong(2), title: 'You Spin Me Round', artist: 'Quarterhead - Topic', requestedBy: 'user-2'},
+      {...makeSong(3), title: 'Dead or Alive - You Spin Me Round', artist: 'Dead or Alive - Topic', autoplay: true},
+    ]};
+    const {description} = buildQueueEmbed(player as never, 1, 10).toJSON();
+
+    expect(description).toContain('[Quarterhead - You Spin Me Round]');
+    expect(description).toContain('<@user-2>');
+    expect(description).toContain('[Dead or Alive - You Spin Me Round]');
+    expect(description).toContain('📻 Autoplay');
+  });
+
   it('rejects pages below 1 defensively', () => {
     expect(() => buildQueueEmbed(makeQueuePlayer(1) as never, 0, 10)).toThrow('page must be at least 1');
   });

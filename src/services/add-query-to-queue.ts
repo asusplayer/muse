@@ -7,6 +7,7 @@ import GetSongs from '../services/get-songs.js';
 import {MediaSource, SongMetadata, STATUS} from './player.js';
 import PlayerManager from '../managers/player.js';
 import {buildMessageEmbed, buildPlayingMessageEmbed} from '../utils/build-embed.js';
+import {getDisplayTitle} from '../utils/song-title.js';
 import {getMemberVoiceChannel, getMostPopularVoiceChannel} from '../utils/channels.js';
 import {getGuildSettings} from '../utils/get-guild-settings.js';
 import {SponsorBlock} from 'sponsorblock-api';
@@ -174,11 +175,11 @@ export default class AddQueryToQueue {
 
     if (newSongs.length === 1) {
       await interaction.editReply({
-        embeds: [buildMessageEmbed(messages.queueAdd.single(firstSong.title, {front: addToFrontOfQueue, skipped: didSkipCurrentTrack, extra: extraMsg}))],
+        embeds: [buildMessageEmbed(messages.queueAdd.single(getDisplayTitle(firstSong), {front: addToFrontOfQueue, skipped: didSkipCurrentTrack, extra: extraMsg}))],
       });
     } else {
       await interaction.editReply({
-        embeds: [buildMessageEmbed(messages.queueAdd.multiple(firstSong.title, newSongs.length - 1, {skipped: didSkipCurrentTrack, extra: extraMsg}))],
+        embeds: [buildMessageEmbed(messages.queueAdd.multiple(getDisplayTitle(firstSong), newSongs.length - 1, {skipped: didSkipCurrentTrack, extra: extraMsg}))],
       });
     }
   }

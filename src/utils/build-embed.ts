@@ -9,6 +9,7 @@ import {
   MessageActionRowComponentBuilder,
 } from 'discord.js';
 import Player, {MediaSource, QueuedSong, STATUS} from '../services/player.js';
+import {getDisplayTitle} from './song-title.js';
 import getProgressBar from './get-progress-bar.js';
 import {prettyTime} from './time.js';
 import {truncate} from './string.js';
@@ -21,7 +22,11 @@ const getMaxSongTitleLength = (title: string) => {
   return nonASCII.test(title) ? 28 : 48;
 };
 
-const getSongTitle = ({title, url, offset, source}: QueuedSong, shouldTruncate = false) => {
+const getRequester = (song: QueuedSong) => (song.autoplay ? messages.nowPlaying.autoplayRequester : `<@${song.requestedBy}>`);
+
+const getSongTitle = (song: QueuedSong, shouldTruncate = false) => {
+  const {url, offset, source} = song;
+  const title = getDisplayTitle(song);
   if (source === MediaSource.HLS) {
     return `[${title}](${url})`;
   }
@@ -96,7 +101,7 @@ const getUpNextPreview = (player: Player): string | null => {
   }
 
   if (value === '') {
-    value = truncate(queue[0].title, EMBED_FIELD_VALUE_LIMIT - moreLine.length - 1);
+    value = truncate(getDisplayTitle(queue[0]), EMBED_FIELD_VALUE_LIMIT - moreLine.length - 1);
   }
 
   return moreLine === '' ? value : `${value}\n${moreLine}`;
@@ -157,14 +162,14 @@ export const buildPlayingMessageEmbed = (player: Player): EmbedBuilder => {
     throw new Error(messages.queue.noPlayingSong);
   }
 
-  const {artist, thumbnailUrl, requestedBy} = currentlyPlaying;
+  const {artist, thumbnailUrl} = currentlyPlaying;
   const message = new EmbedBuilder();
   message
     .setColor(player.status === STATUS.PLAYING ? 'DarkGreen' : 'DarkRed')
     .setTitle(player.status === STATUS.PLAYING ? 'Now Playing' : 'Paused')
     .setDescription(`
       **${getSongTitle(currentlyPlaying)}**
-      Requested by: <@${requestedBy}>\n
+      Requested by: ${getRequester(currentlyPlaying)}\n
       ${getPlayerUI(player)}
     `)
     .setFooter({text: `Source: ${artist}`});
@@ -214,17 +219,17 @@ export const buildQueueEmbed = (player: Player, page: number, pageSize: number):
       const songNumber = index + 1 + queuePageBegin;
       const duration = song.isLive ? 'live' : prettyTime(song.length);
 
-      return `\`${songNumber}.\` ${getSongTitle(song, true)} \`[${duration}]\``;
+      return `\`${songNumber}.\` ${getSongTitle(song, true)} \`[${duration}]\` · ${getRequester(song)}`;
     });
 
-  const {artist, thumbnailUrl, playlist, requestedBy} = currentlyPlaying;
+  const {artist, thumbnailUrl, playlist} = currentlyPlaying;
   const playlistTitle = playlist ? `(${playlist.title})` : '';
   const totalLength = player.getQueue().reduce((accumulator, current) => accumulator + current.length, 0);
 
   const message = new EmbedBuilder();
 
   let description = `**${getSongTitle(currentlyPlaying)}**\n`;
-  description += `Requested by: <@${requestedBy}>\n\n`;
+  description += `Requested by: ${getRequester(currentlyPlaying)}\n\n`;
   description += `${getPlayerUI(player)}\n\n`;
 
   if (player.getQueue().length > 0) {

@@ -26,6 +26,7 @@ export interface SongMetadata {
 export interface QueuedSong extends SongMetadata {
   addedInChannelId: Snowflake;
   requestedBy: string;
+  autoplay?: boolean;
 }
 
 export type AgeRestrictedFallbackResolver = (song: QueuedSong) => Promise<SongMetadata | null>;

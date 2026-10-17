@@ -1216,7 +1216,7 @@ export default class {
     }
 
     for (const song of songs) {
-      this.add({...song, addedInChannelId: seed.addedInChannelId, requestedBy: this.client?.user?.id ?? seed.requestedBy});
+      this.add({...song, addedInChannelId: seed.addedInChannelId, requestedBy: this.client?.user?.id ?? seed.requestedBy, autoplay: true});
     }
   }
 

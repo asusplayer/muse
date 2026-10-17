@@ -89,6 +89,7 @@ const messages = {
     nothingPlaying: 'nothing is currently playing',
     upNext: 'Up next',
     lyrics: '🎤 Lyrics',
+    autoplayRequester: '📻 Autoplay',
     moreInQueue: (count: number) => `…and ${count} more`,
   },
   lyrics: {

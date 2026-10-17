@@ -8,6 +8,7 @@ import LyricsService from '../services/lyrics.js';
 import Command from './index.js';
 import {chunk} from '../utils/arrays.js';
 import {truncate} from '../utils/string.js';
+import {getDisplayTitle} from '../utils/song-title.js';
 import messages from '../messages.js';
 
 const LINES_PER_PAGE = 40;
@@ -45,7 +46,7 @@ export default class implements Command {
       .map(lines => truncate(lines.join('\n'), MAX_DESCRIPTION_LENGTH));
 
     await new Pagination(interaction as ChatInputCommandInteraction<'cached'>, {ephemeral: true})
-      .setTitle(truncate(messages.lyrics.title(song.title), 256))
+      .setTitle(truncate(messages.lyrics.title(getDisplayTitle(song)), 256))
       .setDescriptions(pages)
       .render();
   }
