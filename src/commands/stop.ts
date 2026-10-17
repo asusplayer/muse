@@ -9,6 +9,8 @@ import messages from '../messages.js';
 
 @injectable()
 export default class implements Command {
+  public requiresDJ = true;
+
   public readonly slashCommand = new SlashCommandBuilder()
     .setName('stop')
     .setDescription('stop playback, disconnect, and clear all songs in the queue');

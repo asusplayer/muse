@@ -3,6 +3,7 @@ import {APIEmbedField, AutocompleteInteraction, ChatInputCommandInteraction} fro
 import {inject, injectable} from 'inversify';
 import {Pagination} from 'pagination.djs';
 import Command from './index.js';
+import {wantsToSkipCurrentTrack} from '../utils/dj.js';
 import AddQueryToQueue from '../services/add-query-to-queue.js';
 import {getHistory, toSongMetadata} from '../services/play-history.js';
 import {TYPES} from '../types.js';
@@ -35,6 +36,8 @@ export default class implements Command {
       .addBooleanOption(option => option
         .setName('skip')
         .setDescription('skip the currently playing track')));
+
+  requiresDJ = wantsToSkipCurrentTrack;
 
   constructor(@inject(TYPES.Services.AddQueryToQueue) private readonly addQueryToQueue: AddQueryToQueue) {
   }

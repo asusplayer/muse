@@ -7,6 +7,7 @@ export default interface Command {
   readonly handledButtonIds?: readonly string[];
   readonly handledSelectMenuIds?: readonly string[];
   readonly requiresVC?: boolean | ((interaction: ChatInputCommandInteraction) => boolean);
+  readonly requiresDJ?: boolean | ((interaction: ChatInputCommandInteraction) => boolean);
   execute: (interaction: ChatInputCommandInteraction) => Promise<void>;
   handleButtonInteraction?: (interaction: ButtonInteraction) => Promise<void>;
   handleAutocompleteInteraction?: (interaction: AutocompleteInteraction) => Promise<void>;

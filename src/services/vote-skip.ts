@@ -2,6 +2,7 @@ import {ButtonInteraction, ChatInputCommandInteraction, PermissionFlagsBits} fro
 import type {Setting} from '@prisma/client';
 import type Player from './player.js';
 import {getGuildSettings} from '../utils/get-guild-settings.js';
+import {isDJ} from '../utils/dj.js';
 import messages from '../messages.js';
 
 type SkipInteraction = ChatInputCommandInteraction | ButtonInteraction;
@@ -33,10 +34,12 @@ export class SkipVotes {
   }
 }
 
+// With a DJ role set, everyone else votes even when vote skip is off.
 const canSkipWithoutVote = (interaction: SkipInteraction, player: Player, settings: Setting) => (
-  !settings.voteSkip
+  (settings.djRoleId
+    ? isDJ(interaction, settings)
+    : !settings.voteSkip || Boolean(interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)))
   || player.getCurrent()?.requestedBy === interaction.user.id
-  || Boolean(interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild))
 );
 
 const getListenerIds = (interaction: SkipInteraction, player: Player): Set<string> => {

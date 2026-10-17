@@ -18,6 +18,7 @@ import {getGuildSettings} from '../utils/get-guild-settings.js';
 import {getDisplayTitle} from '../utils/song-title.js';
 import {truncate} from '../utils/string.js';
 import {errorText} from '../utils/error-text.js';
+import {assertDJ} from '../utils/dj.js';
 import messages from '../messages.js';
 
 export const QUEUE_MENU_IDS = {
@@ -98,6 +99,8 @@ export default class implements Command {
     if (!botChannelId || interaction.guild?.voiceStates.cache.get(interaction.user.id)?.channelId !== botChannelId) {
       throw new Error(messages.playerControls.notInBotChannel);
     }
+
+    await assertDJ(interaction);
 
     const [value] = interaction.values;
     const [position, page, pageSize] = value.split(':').map(Number);

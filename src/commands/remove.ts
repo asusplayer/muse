@@ -9,6 +9,8 @@ import messages from '../messages.js';
 
 @injectable()
 export default class implements Command {
+  public requiresDJ = true;
+
   public readonly slashCommand = new SlashCommandBuilder()
     .setName('remove')
     .setDescription('remove songs from the queue')

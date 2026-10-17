@@ -8,6 +8,7 @@ import {SlashCommandBuilder} from '@discordjs/builders';
 import {buildErrorEmbed, buildMessageEmbed, buildPlayingMessageEmbed, PLAYER_BUTTON_IDS} from '../utils/build-embed.js';
 import {errorText} from '../utils/error-text.js';
 import {castSkipVote} from '../services/vote-skip.js';
+import {assertDJ} from '../utils/dj.js';
 import messages from '../messages.js';
 
 const VOLUME_STEP = 10;
@@ -56,6 +57,11 @@ export default class implements Command {
     await interaction.deferUpdate();
 
     try {
+      // Skipping stays open to everyone, since non-DJs vote.
+      if (interaction.customId !== PLAYER_BUTTON_IDS.skip) {
+        await assertDJ(interaction);
+      }
+
       await this.runControl(interaction, player);
     } catch (error: unknown) {
       // Never let bot.ts replace the shared player message with an error.

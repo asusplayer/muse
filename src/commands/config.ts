@@ -130,6 +130,12 @@ export default class implements Command {
         .setDescription('whether similar songs play automatically when the queue ends')
         .setRequired(true)))
     .addSubcommand(subcommand => subcommand
+      .setName('set-dj-role')
+      .setDescription('limit playback controls to a role; leave empty so everyone controls playback')
+      .addRoleOption(option => option
+        .setName('role')
+        .setDescription('role allowed to control playback')))
+    .addSubcommand(subcommand => subcommand
       .setName('get')
       .setDescription('show all settings'));
 
@@ -408,6 +414,21 @@ export default class implements Command {
         break;
       }
 
+      case 'set-dj-role': {
+        await prisma.setting.update({
+          where: {
+            guildId: interaction.guild!.id,
+          },
+          data: {
+            djRoleId: interaction.options.getRole('role')?.id ?? null,
+          },
+        });
+
+        await interaction.reply({embeds: [buildMessageEmbed(messages.config.djRoleUpdated)]});
+
+        break;
+      }
+
       case 'get': {
         const embed = new EmbedBuilder().setTitle(messages.config.title);
 
@@ -431,6 +452,7 @@ export default class implements Command {
           [messages.config.labels.nowPlayingLyrics]: config.nowPlayingLyrics ? messages.common.yes : messages.common.no,
           [messages.config.labels.preferAudio]: config.preferAudio ? messages.common.yes : messages.common.no,
           [messages.config.labels.autoplay]: config.autoplay ? messages.common.yes : messages.common.no,
+          [messages.config.labels.djRole]: config.djRoleId ? `<@&${config.djRoleId}>` : messages.common.noDjRole,
         };
 
         let description = '';

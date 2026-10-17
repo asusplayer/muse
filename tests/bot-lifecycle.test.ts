@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => {
     containerGet: vi.fn(),
     containerGetAll: vi.fn(),
     debug: vi.fn(),
+    getGuildSettings: vi.fn(),
     dependencyReport: vi.fn(() => 'dependency report'),
     login: vi.fn(),
     playerConstructions: [] as Array<{
@@ -61,6 +62,10 @@ vi.mock('../src/utils/db.js', () => ({
   prisma: {
     setting: {upsert: mocks.settingUpsert},
   },
+}));
+
+vi.mock('../src/utils/get-guild-settings.js', () => ({
+  getGuildSettings: mocks.getGuildSettings,
 }));
 
 vi.mock('../src/utils/debug.js', () => ({
@@ -123,6 +128,7 @@ interface StructuralCommand {
   contextMenuCommand?: {name: string; toJSON: ReturnType<typeof vi.fn>};
   handleMessageContextMenu?: ReturnType<typeof vi.fn>;
   requiresVC?: boolean | ((interaction: StructuralInteraction) => boolean);
+  requiresDJ?: boolean;
   slashCommand: {
     name: string;
     toJSON: ReturnType<typeof vi.fn>;
@@ -141,7 +147,7 @@ interface StructuralInteraction {
   isChatInputCommand: () => boolean;
   isCommand: () => boolean;
   isMessageContextMenuCommand: () => boolean;
-  member?: {user: {id: string}};
+  member?: {user: {id: string}; roles?: string[]};
   options: {getSubcommand: () => string};
   replied: boolean;
   reply: ReturnType<typeof vi.fn>;
@@ -421,6 +427,21 @@ describe('interaction boundaries', () => {
     expect(command.handleMessageContextMenu).toHaveBeenCalledOnce();
     expect(command.handleMessageContextMenu).toHaveBeenCalledWith(inside);
     expect(command.execute).not.toHaveBeenCalled();
+  });
+
+  it('keeps DJ-only commands from members without the DJ role', async () => {
+    mocks.getGuildSettings.mockResolvedValue({djRoleId: 'dj-role'});
+    const command = makeCommand('stop', {requiresDJ: true});
+    const {handlers} = await registerBot(true, [command]);
+
+    const member = makeInteraction('stop', {member: {user: {id: 'member-id'}, roles: []}});
+    await invoke(handlers, 'interactionCreate', member);
+    expect(member.reply).toHaveBeenCalledWith({embeds: [buildErrorEmbed('🚫 ope: only DJs can do that')], ephemeral: true});
+    expect(command.execute).not.toHaveBeenCalled();
+
+    const dj = makeInteraction('stop', {member: {user: {id: 'member-id'}, roles: ['dj-role']}});
+    await invoke(handlers, 'interactionCreate', dj);
+    expect(command.execute).toHaveBeenCalledWith(dj);
   });
 
   it('allows a voice-required command when the caller is in any guild voice channel', async () => {

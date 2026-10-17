@@ -10,6 +10,8 @@ import messages from '../messages.js';
 
 @injectable()
 export default class implements Command {
+  public requiresDJ = true;
+
   public readonly slashCommand = new SlashCommandBuilder()
     .setName('pause')
     .setDescription('pause the current song');

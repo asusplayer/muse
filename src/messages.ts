@@ -6,6 +6,7 @@ const messages = {
     errorPrefix: '🚫 ope:',
     unknownError: 'unknown error',
     yes: 'yes',
+    noDjRole: 'none, everyone controls playback',
     no: 'no',
   },
   errors: {
@@ -19,6 +20,7 @@ const messages = {
     invalidPosition: 'position must be at least 1',
     unknownSubcommand: 'unknown subcommand',
     noSongToSkip: 'no song to skip to',
+    djOnly: 'only DJs can do that',
   },
   shared: {
     seekedTo: (time: string) => `👍 seeked to ${time}`,
@@ -79,7 +81,7 @@ const messages = {
   voteSkip: {
     voteCounted: (votes: number, required: number) => `🗳️ skip vote counted (${votes}/${required}), use /skip or ⏭️ to vote`,
     notListening: 'you need to be listening in my voice channel to vote',
-    multipleNeedsPermission: 'only the requester or an admin can skip several songs while vote skip is on',
+    multipleNeedsPermission: 'only the requester, a DJ or an admin can skip several songs while vote skip is on',
   },
   unskip: {
     noSongToGoBack: 'no song to go back to',
@@ -127,6 +129,7 @@ const messages = {
     nowPlayingLyricsUpdated: '👍 now playing lyrics setting updated',
     preferAudioUpdated: '👍 prefer audio setting updated',
     autoplayUpdated: '👍 autoplay setting updated',
+    djRoleUpdated: '👍 DJ role updated',
     title: 'Config',
     labels: {
       playlistLimit: 'Playlist Limit',
@@ -144,6 +147,7 @@ const messages = {
       nowPlayingLyrics: 'Show lyrics in now playing message',
       preferAudio: 'Prefer YouTube Music audio over music videos in searches',
       autoplay: 'Autoplay similar songs when the queue ends',
+      djRole: 'DJ role',
     },
   },
   favorites: {

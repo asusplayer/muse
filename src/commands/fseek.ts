@@ -11,6 +11,8 @@ import messages from '../messages.js';
 
 @injectable()
 export default class implements Command {
+  public requiresDJ = true;
+
   public readonly slashCommand = new SlashCommandBuilder()
     .setName('fseek')
     .setDescription('seek forward in the current song')

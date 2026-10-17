@@ -15,6 +15,7 @@ vi.mock('../src/utils/get-guild-settings.js', () => ({
 }));
 
 import NowPlaying from '../src/commands/now-playing.js';
+import {getGuildSettings} from '../src/utils/get-guild-settings.js';
 import {buildPlayerControls, PLAYER_BUTTON_IDS} from '../src/utils/build-embed.js';
 
 const STATUS = {PLAYING: 0, PAUSED: 1, IDLE: 2} as const;
@@ -191,6 +192,21 @@ describe('player control buttons', () => {
     expect(button(enabled, PLAYER_BUTTON_IDS.autoplay).style).toBe(ButtonStyle.Success);
     await press(enabled, PLAYER_BUTTON_IDS.autoplay);
     expect(enabled.autoplay).toBe(false);
+  });
+
+  it('lets only DJs use the controls once a DJ role is set, but everyone can vote to skip', async () => {
+    vi.mocked(getGuildSettings).mockResolvedValue({voteSkip: false, voteSkipPercent: 50, djRoleId: 'dj-role'} as never);
+    const player = makePlayer();
+
+    const {followUp} = await press(player, PLAYER_BUTTON_IDS.stop);
+    expect(player.stop).not.toHaveBeenCalled();
+    expect(followUp).toHaveBeenCalledWith(expect.objectContaining({ephemeral: true}));
+
+    // Non-DJs go through the vote instead of skipping straight away.
+    await press(player, PLAYER_BUTTON_IDS.skip);
+    expect(player.forward).not.toHaveBeenCalled();
+
+    vi.mocked(getGuildSettings).mockResolvedValue({voteSkip: false, voteSkipPercent: 50} as never);
   });
 
   it('reports failures privately without touching the shared message content', async () => {

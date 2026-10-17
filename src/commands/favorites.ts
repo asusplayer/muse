@@ -2,6 +2,7 @@ import {SlashCommandBuilder} from '@discordjs/builders';
 import {APIEmbedField, AutocompleteInteraction, ChatInputCommandInteraction} from 'discord.js';
 import {inject, injectable} from 'inversify';
 import Command from './index.js';
+import {wantsToSkipCurrentTrack} from '../utils/dj.js';
 import AddQueryToQueue from '../services/add-query-to-queue.js';
 import {TYPES} from '../types.js';
 import {prisma} from '../utils/db.js';
@@ -59,6 +60,8 @@ export default class implements Command {
         .setRequired(true),
       ),
     );
+
+  requiresDJ = wantsToSkipCurrentTrack;
 
   constructor(@inject(TYPES.Services.AddQueryToQueue) private readonly addQueryToQueue: AddQueryToQueue) {
   }

@@ -11,6 +11,8 @@ import {ChatInputCommandInteraction, GuildMember} from 'discord.js';
 
 @injectable()
 export default class implements Command {
+  public requiresDJ = true;
+
   public readonly slashCommand = new SlashCommandBuilder()
     .setName('resume')
     .setDescription('resume playback');

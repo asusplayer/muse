@@ -11,6 +11,7 @@ import {buildErrorEmbed} from './utils/build-embed.js';
 import {errorText, sanitizeErrorForLog} from './utils/error-text.js';
 import messages from './messages.js';
 import {isUserInVoice} from './utils/channels.js';
+import {assertDJ} from './utils/dj.js';
 import Config from './services/config.js';
 import {generateDependencyReport} from '@discordjs/voice';
 import {REST} from '@discordjs/rest';
@@ -91,6 +92,13 @@ export default class {
           if (requiresVC && interaction.member && !isUserInVoice(interaction.guild, interaction.member.user as User)) {
             await interaction.reply({embeds: [buildErrorEmbed(errorText(messages.errors.notInVoiceChannel))], ephemeral: true});
             return;
+          }
+
+          const requiresDJ = command.requiresDJ instanceof Function
+            ? interaction.isChatInputCommand() && command.requiresDJ(interaction)
+            : command.requiresDJ;
+          if (requiresDJ) {
+            await assertDJ(interaction);
           }
 
           if (interaction.isMessageContextMenuCommand()) {

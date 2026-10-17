@@ -30,9 +30,10 @@ const members = (ids: string[]) => {
   return {filter: (fn: (m: typeof list[number]) => boolean) => list.filter(fn)};
 };
 
-const vote = async (player: FakePlayer, userId: string, {admin = false, listeners = LISTENERS} = {}) => castSkipVote({
+const vote = async (player: FakePlayer, userId: string, {admin = false, listeners = LISTENERS, roles = [] as string[]} = {}) => castSkipVote({
   guildId: 'guild',
   user: {id: userId},
+  member: {roles},
   memberPermissions: {has: () => admin},
   guild: {channels: {cache: new Map([['voice-id', {isVoiceBased: () => true, members: members(listeners)}]])}},
 } as never, player as never);
@@ -89,6 +90,15 @@ describe('vote skip', () => {
     expect(await vote(makePlayer(), 'a')).toEqual({kind: 'skip'});
   });
 
+  it('makes everyone without the DJ role vote, even with vote skip off', async () => {
+    mocks.getGuildSettings.mockResolvedValue({voteSkip: false, voteSkipPercent: 50, djRoleId: 'dj'});
+
+    expect(await vote(makePlayer(), 'a')).toEqual({kind: 'vote', votes: 1, required: 2});
+    expect(await vote(makePlayer(), 'b', {roles: ['dj']})).toEqual({kind: 'skip'});
+    expect(await vote(makePlayer(), 'requester')).toEqual({kind: 'skip'});
+    expect(await vote(makePlayer(), 'c', {admin: true})).toEqual({kind: 'skip'});
+  });
+
   it('rejects votes from members outside the voice channel', async () => {
     await expect(vote(makePlayer(), 'stranger')).rejects.toThrow('you need to be listening in my voice channel to vote');
   });
@@ -96,7 +106,7 @@ describe('vote skip', () => {
   it('only lets the requester or an admin skip several songs', async () => {
     const interaction = (userId: string) => ({guildId: 'guild', user: {id: userId}, memberPermissions: {has: () => false}}) as never;
 
-    await expect(assertCanSkipMultiple(interaction('a'), makePlayer() as never)).rejects.toThrow('only the requester or an admin');
+    await expect(assertCanSkipMultiple(interaction('a'), makePlayer() as never)).rejects.toThrow('only the requester, a DJ or an admin');
     await expect(assertCanSkipMultiple(interaction('requester'), makePlayer() as never)).resolves.toBeUndefined();
   });
 });

@@ -4,6 +4,7 @@ import {SlashCommandBuilder, SlashCommandSubcommandsOnlyBuilder} from '@discordj
 import {inject, injectable, optional} from 'inversify';
 import Spotify from 'spotify-web-api-node';
 import Command from './index.js';
+import {wantsToSkipCurrentTrack} from '../utils/dj.js';
 import {TYPES} from '../types.js';
 import ThirdParty from '../services/third-party.js';
 import getYouTubeAndSpotifySuggestionsFor, {SpotifySuggestionsUnavailableError} from '../utils/get-youtube-and-spotify-suggestions-for.js';
@@ -28,6 +29,8 @@ export default class implements Command {
     .setDMPermission(false);
 
   public requiresVC = true;
+
+  public requiresDJ = wantsToSkipCurrentTrack;
 
   private readonly spotify?: Spotify;
   private readonly cache: KeyValueCacheProvider;
