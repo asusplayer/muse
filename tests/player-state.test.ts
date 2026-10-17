@@ -887,3 +887,78 @@ describe('play history recording', () => {
     expect(recordPlay).toHaveBeenCalledTimes(2);
   });
 });
+
+describe('autoplay', () => {
+  const queueAutoplay = async (player: Player) => (player as unknown as {queueAutoplaySongs: () => Promise<void>}).queueAutoplaySongs();
+  const upcoming = (player: Player) => player.getQueue().map(song => song.title);
+
+  const makeAutoplayPlayer = (resolver = vi.fn().mockResolvedValue([makeSong('Related A'), makeSong('Related B')])) => {
+    const player = new Player({} as never, GUILD_ID, undefined, {user: {id: 'bot-id'}} as never, undefined, resolver);
+    player.add(makeSong('Earlier'));
+    player.add(makeSong('Last YouTube'));
+    player.add(makeSong('Radio', {source: MediaSource.HLS}));
+    player.manualForward(2);
+    player.status = STATUS.PLAYING;
+    return {player, resolver};
+  };
+
+  beforeEach(() => {
+    dependencyMocks.getGuildSettings.mockResolvedValue({autoplay: true});
+  });
+
+  it('queues related songs for the last played YouTube song, excluding the session queue', async () => {
+    const {player, resolver} = makeAutoplayPlayer();
+
+    await queueAutoplay(player);
+
+    const [seed, excluded, count] = resolver.mock.calls[0] as [QueuedSong, Set<string>, number];
+    expect(seed.title).toBe('Last YouTube');
+    expect([...excluded]).toEqual(['earlier', 'last-youtube', 'radio']);
+    expect(count).toBe(5);
+    expect(player.getQueue().map(song => [song.title, song.requestedBy])).toEqual([['Related A', 'bot-id'], ['Related B', 'bot-id']]);
+  });
+
+  it('follows the session override over the server setting', async () => {
+    const {player, resolver} = makeAutoplayPlayer();
+    player.autoplay = false;
+
+    await queueAutoplay(player);
+
+    expect(resolver).not.toHaveBeenCalled();
+  });
+
+  it('stays off when the server setting is off', async () => {
+    dependencyMocks.getGuildSettings.mockResolvedValue({autoplay: false});
+    const {player, resolver} = makeAutoplayPlayer();
+
+    await queueAutoplay(player);
+
+    expect(resolver).not.toHaveBeenCalled();
+  });
+
+  it('lets the queue finish when the lookup fails', async () => {
+    const {player} = makeAutoplayPlayer(vi.fn().mockRejectedValue(new Error('yt-dlp failed')));
+
+    await queueAutoplay(player);
+
+    expect(upcoming(player)).toEqual([]);
+  });
+
+  it.each([
+    ['playback stopped', (player: Player) => {
+      player.status = STATUS.IDLE;
+    }],
+    ['someone queued a song', (player: Player) => {
+      player.add(makeSong('Requested'));
+    }],
+  ])('adds nothing when %s during the lookup', async (_label, change) => {
+    const {player} = makeAutoplayPlayer(vi.fn(async () => {
+      change(player);
+      return [makeSong('Related A')];
+    }));
+
+    await queueAutoplay(player);
+
+    expect(upcoming(player)).not.toContain('Related A');
+  });
+});

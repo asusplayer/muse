@@ -44,6 +44,9 @@ export {DEFAULT_VOLUME, MediaSource, STATUS};
 export type {AgeRestrictedFallbackResolver, PlayerEvents, QueuedPlaylist, QueuedSong, SongMetadata};
 
 export type LyricsResolver = (song: QueuedSong) => Promise<Lyrics | null>;
+export type AutoplayResolver = (seed: QueuedSong, excludedUrls: ReadonlySet<string>, count: number) => Promise<SongMetadata[]>;
+
+const AUTOPLAY_SONG_COUNT = 5;
 
 const FFMPEG_STARTUP_TIMEOUT_MS = 20_000;
 const VOICE_CONNECTION_ATTEMPTS = 3;
@@ -108,6 +111,9 @@ export default class {
   public loopCurrentSong = false;
   public loopCurrentQueue = false;
   public readonly skipVotes = new SkipVotes();
+  // Session override from the now-playing button; null falls back to the server setting.
+  public autoplay: boolean | null = null;
+  private defaultAutoplay = false;
   private currentChannel: VoiceChannel | undefined;
   private voiceConnectionGeneration = 0;
   private pendingConnection?: {channelId: string; promise: Promise<void>};
@@ -137,6 +143,7 @@ export default class {
   private readonly ageRestrictedFallbackResolver?: AgeRestrictedFallbackResolver;
   private readonly client?: Client;
   private readonly lyricsResolver?: LyricsResolver;
+  private readonly autoplayResolver?: AutoplayResolver;
   private disconnectTimer: NodeJS.Timeout | null = null;
 
   private readonly channelToSpeakingUsers: Map<string, Set<string>> = new Map();
@@ -145,12 +152,13 @@ export default class {
   private voiceActivitySessionGeneration = 0;
   private hasRegisteredVoiceActivityListener = false;
 
-  constructor(fileCache: FileCacheProvider, guildId: string, ageRestrictedFallbackResolver?: AgeRestrictedFallbackResolver, client?: Client, lyricsResolver?: LyricsResolver) {
+  constructor(fileCache: FileCacheProvider, guildId: string, ageRestrictedFallbackResolver?: AgeRestrictedFallbackResolver, client?: Client, lyricsResolver?: LyricsResolver, autoplayResolver?: AutoplayResolver) {
     this.fileCache = fileCache;
     this.guildId = guildId;
     this.ageRestrictedFallbackResolver = ageRestrictedFallbackResolver;
     this.client = client;
     this.lyricsResolver = lyricsResolver;
+    this.autoplayResolver = autoplayResolver;
     this.playbackAttempts = new PlaybackAttemptTracker(() => ({
       currentSong: this.getCurrent(),
       queueEntryVersion: this.getCurrentQueueEntryId(),
@@ -207,6 +215,7 @@ export default class {
       }
 
       this.loopCurrentSong = false;
+      this.autoplay = null;
       destroyVoiceConnection(this.voiceConnection);
       this.stopAudioPlayer(true);
 
@@ -443,6 +452,10 @@ export default class {
 
   getCurrentQueueEntryId(): number | null {
     return this.getCurrent() === null ? null : this.currentQueueEntryVersion;
+  }
+
+  isAutoplayEnabled(): boolean {
+    return this.autoplay ?? this.defaultAutoplay;
   }
 
   getCurrentLyrics(): Lyrics | null {
@@ -1145,6 +1158,11 @@ export default class {
         return;
       }
 
+      if (this.isQueueEmpty()) {
+        await this.queueAutoplaySongs();
+      }
+
+      // With nothing queued this moves past the last song, which finishes the queue.
       await this.forward(1);
       const currentSong = this.getCurrent();
       if (!currentSong) {
@@ -1159,6 +1177,36 @@ export default class {
           embeds: [buildPlayingMessageEmbed(this)],
         });
       }
+    }
+  }
+
+  // Appends songs related to the last played YouTube song when the queue has run out.
+  private async queueAutoplaySongs(): Promise<void> {
+    if (!this.autoplayResolver || !(this.autoplay ?? (await getGuildSettings(this.guildId)).autoplay)) {
+      return;
+    }
+
+    const seed = this.queue.slice(0, this.queuePosition + 1).reverse()
+      .find(song => song.source === MediaSource.Youtube && !song.isLive);
+    if (!seed) {
+      return;
+    }
+
+    let songs: SongMetadata[];
+    try {
+      songs = await this.autoplayResolver(seed, new Set(this.queue.map(song => song.url)), AUTOPLAY_SONG_COUNT);
+    } catch (error: unknown) {
+      debug(error);
+      return;
+    }
+
+    // Someone may have queued a song or stopped playback while the lookup ran.
+    if (!this.isQueueEmpty() || this.status !== STATUS.PLAYING) {
+      return;
+    }
+
+    for (const song of songs) {
+      this.add({...song, addedInChannelId: seed.addedInChannelId, requestedBy: this.client?.user?.id ?? seed.requestedBy});
     }
   }
 
@@ -1188,6 +1236,7 @@ export default class {
 
     try {
       const settings = await getGuildSettings(this.guildId);
+      this.defaultAutoplay = settings.autoplay;
       if (!settings.persistentNowPlayingMessage || !this.client) {
         return;
       }

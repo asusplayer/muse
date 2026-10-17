@@ -119,6 +119,7 @@ const messages = {
     voteSkipPercentUpdated: '👍 vote skip threshold updated',
     nowPlayingLyricsUpdated: '👍 now playing lyrics setting updated',
     preferAudioUpdated: '👍 prefer audio setting updated',
+    autoplayUpdated: '👍 autoplay setting updated',
     title: 'Config',
     labels: {
       playlistLimit: 'Playlist Limit',
@@ -135,6 +136,7 @@ const messages = {
       voteSkipPercent: 'Vote skip threshold',
       nowPlayingLyrics: 'Show lyrics in now playing message',
       preferAudio: 'Prefer YouTube Music audio over music videos in searches',
+      autoplay: 'Autoplay similar songs when the queue ends',
     },
   },
   favorites: {

@@ -39,6 +39,7 @@ model Setting {
   voteSkipPercent                     Int      @default(50)
   nowPlayingLyrics                    Boolean  @default(true)
   preferAudio                         Boolean  @default(true)
+  autoplay                            Boolean  @default(false)
   createdAt                           DateTime @default(now())
   updatedAt                           DateTime @updatedAt
 }

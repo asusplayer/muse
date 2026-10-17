@@ -9,10 +9,11 @@ import {ONE_HOUR_IN_SECONDS, ONE_MINUTE_IN_SECONDS} from '../utils/constants.js'
 import {parseTime} from '../utils/time.js';
 import getYouTubeID from 'get-youtube-id';
 import {buildAudioFallbackQuery, matchTokens, rankAudioFallbackCandidates} from '../utils/youtube-audio-fallback.js';
-import {searchYouTubeMusicSongIds} from '../utils/yt-dlp.js';
+import {getYouTubeMixVideoIds, searchYouTubeMusicSongIds} from '../utils/yt-dlp.js';
 import debug from '../utils/debug.js';
 
 const YOUTUBE_MUSIC_CANDIDATES = 5;
+const AUTOPLAY_MIX_CANDIDATES = 25;
 
 interface VideoDetailsResponse {
   id: string;
@@ -107,6 +108,22 @@ export default class {
     return firstVideo
       ? this.getMetadataFromVideo({video: firstVideo, shouldSplitChapters})
       : [];
+  }
+
+  // Songs from YouTube's Mix for the seed; costs one quota unit for the details, nothing for the Mix itself.
+  async getAutoplaySongs(seed: SongMetadata, excludedUrls: ReadonlySet<string>, count: number): Promise<SongMetadata[]> {
+    const ids = (await getYouTubeMixVideoIds(seed.url, AUTOPLAY_MIX_CANDIDATES))
+      .filter(id => id !== seed.url && !excludedUrls.has(id));
+    if (ids.length === 0) {
+      return [];
+    }
+
+    const videos = await this.getVideosByID(ids);
+    return ids
+      .map(id => videos.find(video => video.id === id))
+      .filter((video): video is VideoDetailsResponse => Boolean(video) && video!.snippet.liveBroadcastContent === 'none')
+      .slice(0, count)
+      .map(video => this.getMetadataFromVideo({video, shouldSplitChapters: false})[0]);
   }
 
   async findAudioFallback(song: SongMetadata): Promise<SongMetadata | null> {

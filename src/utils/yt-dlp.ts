@@ -381,10 +381,19 @@ export const getSoundCloudMetadata = async (url: string, playlistLimit: number):
   extractMedia(url, Math.max(1, Math.floor(playlistLimit)), false)
 );
 
-export const searchYouTubeMusicSongIds = async (query: string, limit: number): Promise<string[]> => {
-  const result = await extractMedia(`https://music.youtube.com/search?q=${encodeURIComponent(query)}#songs`, limit);
+const extractEntryIds = async (url: string, limit: number): Promise<string[]> => {
+  const result = await extractMedia(url, limit);
   return (result.entries ?? []).flatMap(entry => entry?.id ? [entry.id] : []);
 };
+
+export const searchYouTubeMusicSongIds = async (query: string, limit: number): Promise<string[]> => (
+  extractEntryIds(`https://music.youtube.com/search?q=${encodeURIComponent(query)}#songs`, limit)
+);
+
+// YouTube's "Mix" radio for a video; its first entry is the video itself.
+export const getYouTubeMixVideoIds = async (videoId: string, limit: number): Promise<string[]> => (
+  extractEntryIds(`https://www.youtube.com/watch?v=${videoId}&list=RD${videoId}`, limit)
+);
 
 export const getSoundCloudMediaSource = async (url: string): Promise<YtDlpMediaSource> => (
   toMediaSource(await extractMedia(url, undefined, false))

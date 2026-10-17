@@ -35,6 +35,7 @@ export default class {
         async song => this.youtubeAPI.findAudioFallback(song),
         this.client,
         async song => this.lyrics.getLyrics(song),
+        async (seed, excludedUrls, count) => this.youtubeAPI.getAutoplaySongs(seed, excludedUrls, count),
       );
 
       this.guildPlayers.set(guildId, player);

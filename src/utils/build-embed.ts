@@ -111,6 +111,7 @@ export const PLAYER_BUTTON_IDS = {
   shuffle: 'np:shuffle',
   volumeDown: 'np:volume-down',
   volumeUp: 'np:volume-up',
+  autoplay: 'np:autoplay',
 } as const;
 
 const controlButton = (customId: string, emoji: string, options: {disabled?: boolean; active?: boolean} = {}) =>
@@ -136,6 +137,7 @@ export const buildPlayerControls = (player: Player): Array<APIActionRowComponent
       controlButton(PLAYER_BUTTON_IDS.shuffle, '🔀', {disabled: player.isQueueEmpty()}),
       controlButton(PLAYER_BUTTON_IDS.volumeDown, '🔉'),
       controlButton(PLAYER_BUTTON_IDS.volumeUp, '🔊'),
+      controlButton(PLAYER_BUTTON_IDS.autoplay, '📻', {active: player.isAutoplayEnabled()}),
     ),
   ];
 

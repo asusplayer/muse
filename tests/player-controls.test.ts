@@ -30,6 +30,8 @@ const makePlayer = (overrides: Record<string, unknown> = {}) => ({
   getVoiceChannelId: vi.fn(() => 'voice-id'),
   getCurrentQueueEntryId: vi.fn(() => 1),
   getConfiguredVolume: vi.fn(() => 50),
+  isAutoplayEnabled: vi.fn(() => false),
+  autoplay: null as boolean | null,
   back: vi.fn().mockResolvedValue(undefined),
   forward: vi.fn().mockResolvedValue(undefined),
   play: vi.fn().mockResolvedValue(undefined),
@@ -176,6 +178,19 @@ describe('player control buttons', () => {
     const quiet = makePlayer({getConfiguredVolume: vi.fn(() => 5)});
     await press(quiet, PLAYER_BUTTON_IDS.volumeDown);
     expect(quiet.setVolume).toHaveBeenCalledWith(0);
+  });
+
+  it('toggles autoplay for the session and shows it on the button', async () => {
+    const player = makePlayer();
+    expect(button(player, PLAYER_BUTTON_IDS.autoplay).style).toBe(ButtonStyle.Secondary);
+
+    await press(player, PLAYER_BUTTON_IDS.autoplay);
+    expect(player.autoplay).toBe(true);
+
+    const enabled = makePlayer({isAutoplayEnabled: vi.fn(() => true)});
+    expect(button(enabled, PLAYER_BUTTON_IDS.autoplay).style).toBe(ButtonStyle.Success);
+    await press(enabled, PLAYER_BUTTON_IDS.autoplay);
+    expect(enabled.autoplay).toBe(false);
   });
 
   it('reports failures privately without touching the shared message content', async () => {

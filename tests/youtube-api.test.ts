@@ -5,7 +5,7 @@ vi.mock('../src/services/player.js', () => ({
   MediaSource: {Youtube: 0},
 }));
 
-const ytDlpMocks = vi.hoisted(() => ({searchYouTubeMusicSongIds: vi.fn()}));
+const ytDlpMocks = vi.hoisted(() => ({searchYouTubeMusicSongIds: vi.fn(), getYouTubeMixVideoIds: vi.fn()}));
 
 vi.mock('../src/utils/yt-dlp.js', () => ytDlpMocks);
 
@@ -27,12 +27,14 @@ const makeVideo = ({
   duration = 'PT3M',
   title = id,
   channelTitle = 'Channel',
+  liveBroadcastContent = 'none',
 }: {
   id: string;
   description?: string;
   duration?: string;
   title?: string;
   channelTitle?: string;
+  liveBroadcastContent?: string;
 }) => ({
   id,
   contentDetails: {
@@ -42,7 +44,7 @@ const makeVideo = ({
   snippet: {
     title,
     channelTitle,
-    liveBroadcastContent: 'none',
+    liveBroadcastContent,
     description,
     thumbnails: {
       medium: {url: `https://example.com/${id}.jpg`},
@@ -393,5 +395,21 @@ describe('YoutubeAPI search audio preference', () => {
     const query = preferAudio && Array.isArray(musicIds) && musicIds.length > 0 ? 'strangers in the night sinatra' : 'Perfect Strangers - Jonas Blue';
 
     expect(await searchUrls(query, preferAudio as boolean, musicIds as string[] | Error)).toEqual([musicVideo.id]);
+  });
+});
+
+describe('YoutubeAPI autoplay songs', () => {
+  it('returns Mix songs except the seed, excluded and live videos, up to the count', async () => {
+    const ids = ['seedvideo01', 'played00001', 'livestream1', 'fresh000001', 'fresh000002', 'fresh000003'];
+    ytDlpMocks.getYouTubeMixVideoIds.mockResolvedValueOnce(ids);
+    const {api} = makeHarness({videos: [
+      ...ids.filter(id => id !== 'livestream1').map(id => makeVideo({id})),
+      makeVideo({id: 'livestream1', liveBroadcastContent: 'live'}),
+    ]});
+
+    const songs = await api.getAutoplaySongs({url: 'seedvideo01'} as never, new Set(['played00001']), 2);
+
+    expect(ytDlpMocks.getYouTubeMixVideoIds).toHaveBeenCalledWith('seedvideo01', 25);
+    expect(songs.map(song => song.url)).toEqual(['fresh000001', 'fresh000002']);
   });
 });

@@ -123,6 +123,13 @@ export default class implements Command {
         .setDescription('whether searches prefer the YouTube Music audio version')
         .setRequired(true)))
     .addSubcommand(subcommand => subcommand
+      .setName('set-autoplay')
+      .setDescription('set whether similar songs play automatically when the queue ends')
+      .addBooleanOption(option => option
+        .setName('value')
+        .setDescription('whether similar songs play automatically when the queue ends')
+        .setRequired(true)))
+    .addSubcommand(subcommand => subcommand
       .setName('get')
       .setDescription('show all settings'));
 
@@ -384,6 +391,23 @@ export default class implements Command {
         break;
       }
 
+      case 'set-autoplay': {
+        const value = interaction.options.getBoolean('value')!;
+
+        await prisma.setting.update({
+          where: {
+            guildId: interaction.guild!.id,
+          },
+          data: {
+            autoplay: value,
+          },
+        });
+
+        await interaction.reply({embeds: [buildMessageEmbed(messages.config.autoplayUpdated)]});
+
+        break;
+      }
+
       case 'get': {
         const embed = new EmbedBuilder().setTitle(messages.config.title);
 
@@ -406,6 +430,7 @@ export default class implements Command {
           [messages.config.labels.voteSkipPercent]: `${config.voteSkipPercent}%`,
           [messages.config.labels.nowPlayingLyrics]: config.nowPlayingLyrics ? messages.common.yes : messages.common.no,
           [messages.config.labels.preferAudio]: config.preferAudio ? messages.common.yes : messages.common.no,
+          [messages.config.labels.autoplay]: config.autoplay ? messages.common.yes : messages.common.no,
         };
 
         let description = '';

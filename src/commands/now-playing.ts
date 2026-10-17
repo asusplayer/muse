@@ -131,6 +131,9 @@ export default class implements Command {
       case PLAYER_BUTTON_IDS.volumeUp:
         player.setVolume(clampVolume(player.getConfiguredVolume() + VOLUME_STEP));
         break;
+      case PLAYER_BUTTON_IDS.autoplay:
+        player.autoplay = !player.isAutoplayEnabled();
+        break;
       default:
         break;
     }
