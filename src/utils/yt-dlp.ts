@@ -2,8 +2,10 @@ import {execa} from 'execa';
 import {constants as fsConstants, promises as fs} from 'fs';
 import {tmpdir} from 'os';
 import path from 'path';
+import pLimit from 'p-limit';
 
 const YT_DLP_VERSION_TIMEOUT_MS = 15_000;
+const ENTRY_LOOKUP_CONCURRENCY = 4;
 const YT_DLP_UPDATE_TIMEOUT_MS = 120_000;
 const YT_DLP_EXTRACT_TIMEOUT_MS = 45_000;
 
@@ -381,10 +383,13 @@ export const getSoundCloudMetadata = async (url: string, playlistLimit: number):
   extractMedia(url, Math.max(1, Math.floor(playlistLimit)), false)
 );
 
-const extractEntryIds = async (url: string, limit: number): Promise<string[]> => {
+// Each lookup is its own yt-dlp process (tens of MB), and a Spotify playlist starts one per track at once.
+const entryLookupLimit = pLimit(ENTRY_LOOKUP_CONCURRENCY);
+
+const extractEntryIds = async (url: string, limit: number): Promise<string[]> => entryLookupLimit(async () => {
   const result = await extractMedia(url, limit);
   return (result.entries ?? []).flatMap(entry => entry?.id ? [entry.id] : []);
-};
+});
 
 export const searchYouTubeMusicSongIds = async (query: string, limit: number): Promise<string[]> => (
   extractEntryIds(`https://music.youtube.com/search?q=${encodeURIComponent(query)}#songs`, limit)
